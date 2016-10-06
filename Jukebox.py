@@ -386,4 +386,4 @@ if __name__ == "__main__":
     
     log.basicConfig(format="<%(filename)s> [%(levelname)s] %(message)s",level=loglvl)
     
-    m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel)
+    m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel,user=args.name)
