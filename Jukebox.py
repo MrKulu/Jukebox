@@ -369,9 +369,9 @@ if __name__ == "__main__":
     
     p.add_argument('--jsonread',default="jsonread.db", help='The path to the jsonread file')
     
-    p.add_argument('--verbose','-v',help='Verbose mode')
-    p.add_argument('--silent','-s',help='Silent mode')
-    p.add_argument('--debug','-d',help='Debug mode')
+    p.add_argument('--verbose','-v',action='store_true',help='Verbose mode')
+    p.add_argument('--silent','-s',action='store_true',help='Silent mode')
+    p.add_argument('--debug','-d',action='store_true',help='Debug mode')
     
     p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 
