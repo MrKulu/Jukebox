@@ -373,7 +373,7 @@ if __name__ == "__main__":
     p.add_argument('--silent','-s',help='Silent mode')
     p.add_argument('--debug','-d',help='Debug mode')
     
-    p.add_argument('--version', action='version', version='%(prog)s %s' % VERSION)
+    p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 
     args = p.parse_args()
     loglvl = log.WARNING
