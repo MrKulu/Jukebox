@@ -13,7 +13,7 @@ import sqlite3
 import audioop
 import hashlib
 import argparse
-import logger as log
+import logging as log
 from codecs import open
 from shutil import copyfile
 from multiprocessing import Process
