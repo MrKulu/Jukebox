@@ -23,7 +23,7 @@ import subprocess as sp
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
-VERSION = "1.0a1"
+VERSION = "0.1a"
 
 
 class LinkHandler:
@@ -31,14 +31,43 @@ class LinkHandler:
         self.url = url
         self.options = options
         self.sender = sender
+        self.thread = None
+        self.started = False
         
         self.downloaded = False
         
     def download(self):
-        return True # TODO. not thread
+        if self.downloaded:
+            log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
+        else:
+            log.debug("Starting download for %s" % self.url)
+            
+            filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
+            command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg', '-o', filename, '-x', "--audio-format", "opus", self.url]
+            th = sp.call(command_yt)
+            
+            self.downloaded = True
+            log.debug("Downloading for %s complete" % self.url)
         
     def play(self):
-        return True # TODO. not thread
+        if (not self.downloaded):
+            self.download()
+        log.debug("Started playing %s" % self.url)
+        
+        filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
+        
+        command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
+        
+        if 'loop' in self.options:
+            command = "while true; do \n" + command + "\ndone"
+
+        self.thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
+
+            
+        return True
+        
+    def stop(self):
+        return True #TODO
     
     
 
@@ -79,7 +108,7 @@ class Jukebox:
         if len(purl.split(' ',1)) > 1:
             param,url = purl.split(' ',1)
             
-        print "[debug] Started downloading %s (parameter = %s)" % (url, param)
+        log.debug("Started downloading %s (parameter = %s)" % (url, param))
         # self.downloading = True
         filename = '~/.musiccache/%s.opus' % (hashlib.sha1(url).hexdigest())
         command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg', '-o', filename, '-x', "--audio-format", "opus", url]
@@ -89,7 +118,7 @@ class Jukebox:
             time.sleep(0.1)
         if time.time() - tmout >= 3600:
             self.send_msg_channel("There ha%s been an i%s%sue during download: Procce%s%s didn't terminate after an hour. Aborting")        
-        print "[debug] Finished downloading %s (parameter = %s)" % (url, param)            
+        log.debug("Finished downloading %s (parameter = %s)" % (url, param))            
         # self.downloading = False
 
     def play(self,purl):
@@ -104,7 +133,7 @@ class Jukebox:
             self.toDownload = [purl] + self.toDownload
         filename = '~/.musiccache/%s.opus' % (hashlib.sha1(url).hexdigest())
         
-        print "[debug] Waiting for start of download of %s (parameter = %s)" % (url, param)
+        log.debug("Waiting for start of download of %s (parameter = %s)" % (url, param))
         
         
         
@@ -114,12 +143,12 @@ class Jukebox:
             self.downProc[x] = Process(target = self.download, args=(x,))
             self.downProc[x].start()
         
-        print "[debug] Waiting for %s to finish downloading (parameter = %s)" % (url, param)
+        log.debug("Waiting for %s to finish downloading (parameter = %s)" % (url, param))
         
         self.downProc[purl].join()
         del self.downProc[purl]
         
-        print "[debug] Started playing %s (parameter = %s)" % (url, param)
+        log.debug(" Started playing %s (parameter = %s)" % (url, param))
         
         command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
         self.url = url
