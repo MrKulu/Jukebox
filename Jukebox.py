@@ -25,6 +25,23 @@ import pymumble
 
 VERSION = "0.1a"
 
+class SinglePlayThread:
+    class __spt:
+        def __init__(self, th = None):
+            self.thread = th
+    instance = None
+    def __init__(self,th=None):
+        if not SinglePlayThread.instance:
+            SinglePlayThread.instance = SinglePlayThread.__spt(th)
+        else:
+            if th is not None:
+                self.stop()
+                SinglePlayThread.instance.thread = th
+    def stop(self):
+        if SinglePlayThread.instance.thread is not None:
+            SinglePlayThread.instance.thread.terminate()
+            SinglePlayThread.instance.thread = None
+
 
 class LinkHandler:
     def __init__(self,url=None,options=[],sender=None):
@@ -44,7 +61,7 @@ class LinkHandler:
             
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
             command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg', '-o', filename, '-x', "--audio-format", "opus", self.url]
-            th = sp.call(command_yt)
+            sp.call(command_yt)
             
             self.downloaded = True
             log.debug("Downloading for %s complete" % self.url)
@@ -52,7 +69,6 @@ class LinkHandler:
     def play(self):
         if (not self.downloaded):
             self.download()
-        log.debug("Started playing %s" % self.url)
         
         filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
         
@@ -61,15 +77,16 @@ class LinkHandler:
         if 'loop' in self.options:
             command = "while true; do \n" + command + "\ndone"
 
-        self.thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
-
-            
-        return True
+        self.thread = SinglePlayThread(sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480))
+        self.started = True
+        log.debug("Started playing %s" % self.url)
         
     def stop(self):
-        return True #TODO
-    
-    
+        if self.thread is not None:
+            self.thread.stop()
+            self.thread = None
+
+
 
 class Jukebox:
     def __init__(self, host, user="Jukebox", port=64738, password="", channel="",jsonread="jsonread.db"):
@@ -380,7 +397,7 @@ def get_url(url):
     if res:
         return res.group(1)
     else:
-        return False
+        return None
         
 if __name__ == "__main__":
 
