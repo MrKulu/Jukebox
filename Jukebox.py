@@ -25,25 +25,25 @@ import pymumble
 
 VERSION = "0.1a"
 
-class SinglePlayThread:
-    class __spt:
-        def __init__(self, th = None):
-            self.thread = th
-    instance = None
-    def __init__(self,th=None):
-        if not SinglePlayThread.instance:
-            SinglePlayThread.instance = SinglePlayThread.__spt(th)
-        else:
-            if th is not None:
-                self.stop()
-                SinglePlayThread.instance.thread = th
-    def stop(self):
-        if SinglePlayThread.instance.thread is not None:
-            SinglePlayThread.instance.thread.terminate()
-            SinglePlayThread.instance.thread = None
-
-
 class LinkHandler:
+    
+    class SinglePlayThread:
+        class __spt:
+            def __init__(self, th = None):
+                self.thread = th
+        instance = None
+        def __init__(self,th=None):
+            if not SinglePlayThread.instance:
+                SinglePlayThread.instance = SinglePlayThread.__spt(th)
+            else:
+                if th is not None:
+                    self.stop()
+                    SinglePlayThread.instance.thread = th
+        def stop(self):
+            if SinglePlayThread.instance.thread is not None:
+                SinglePlayThread.instance.thread.terminate()
+                SinglePlayThread.instance.thread = None
+    
     def __init__(self,url=None,options=[],sender=None):
         self.url = url
         self.options = options
