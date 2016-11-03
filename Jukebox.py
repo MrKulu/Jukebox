@@ -27,30 +27,14 @@ VERSION = "0.1a"
 
 class LinkHandler:
     
-    class SinglePlayThread:
-        class __spt:
-            def __init__(self, th = None):
-                self.thread = th
-        instance = None
-        def __init__(self,th=None):
-            if not SinglePlayThread.instance:
-                SinglePlayThread.instance = SinglePlayThread.__spt(th)
-            else:
-                if th is not None:
-                    self.stop()
-                    SinglePlayThread.instance.thread = th
-        def stop(self):
-            if SinglePlayThread.instance.thread is not None:
-                SinglePlayThread.instance.thread.terminate()
-                SinglePlayThread.instance.thread = None
+    thread = None
+    current = None
     
     def __init__(self,url=None,options=[],sender=None):
         self.url = url
         self.options = options
         self.sender = sender
-        self.thread = None
         self.started = False
-        
         self.downloaded = False
         
     def download(self):
@@ -77,14 +61,18 @@ class LinkHandler:
         if 'loop' in self.options:
             command = "while true; do \n" + command + "\ndone"
 
-        self.thread = SinglePlayThread(sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480))
+        LinkHandler.stop()
+        LinkHandler.current = self
+        LinkHandler.thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
         self.started = True
         log.debug("Started playing %s" % self.url)
         
-    def stop(self):
-        if self.thread is not None:
-            self.thread.stop()
-            self.thread = None
+    def stop():
+        if LinkHandler.thread is not None:
+            LinkHandler.thread.terminate()
+            log.debug("Stoped playing %s" % LinkHandler.current.url)
+            LinkHandler.thread = None
+            LinkHandler.current = None
 
 
 
