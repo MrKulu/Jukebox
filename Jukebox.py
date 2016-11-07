@@ -27,8 +27,23 @@ VERSION = "0.1a"
 
 class LinkHandler:
     
-    thread = None
-    current = None
+    __thread = None
+    __current = None
+    
+    def stop():
+        if LinkHandler.thread is not None:
+            if Linkhandler.__thread.pull() is not None:
+                LinkHandler.__thread.terminate()
+                log.debug("Stoped playing %s" % LinkHandler.__current.url)
+            LinkHandler.__thread = None
+            LinkHandler.__current = None
+
+    def get_current():
+        if Linkhandler.thread.pull() is None:
+            LinkHandler.__current = None
+            LinkHandler.__thread = None
+        return LinkHandler.__current
+    
     
     def __init__(self,url=None,options=[],sender=None):
         self.url = url
@@ -51,34 +66,27 @@ class LinkHandler:
             log.debug("Downloading for %s complete" % self.url)
         
     def play(self):
-        if (not self.downloaded):
-            self.download()
-        
-        filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
-        
-        command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
-        
-        if 'loop' in self.options:
-            command = "while true; do \n" + command + "\ndone"
+        if (not self.downloaded or self.started):
+            return False
+        else:        
+            filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
 
-        LinkHandler.stop()
-        LinkHandler.current = self
-        LinkHandler.thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
-        self.started = True
-        log.debug("Started playing %s" % self.url)
-        
-    def stop():
-        if LinkHandler.thread is not None:
-            LinkHandler.thread.terminate()
-            log.debug("Stoped playing %s" % LinkHandler.current.url)
-            LinkHandler.thread = None
-            LinkHandler.current = None
+            command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
+
+            if 'loop' in self.options:
+                command = "while true; do \n%s\ndone" % command
+
+            LinkHandler.stop()
+            LinkHandler.__current = self
+            LinkHandler.__thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
+            self.started = True
+            log.debug("Started playing %s" % self.url)
+            return True
 
 
 
 class Jukebox:
     def __init__(self, host, user="Jukebox", port=64738, password="", channel="",jsonread="jsonread.db"):
-
 
         self.playing = False
         self.url = None
@@ -140,8 +148,6 @@ class Jukebox:
         
         log.debug("Waiting for start of download of %s (parameter = %s)" % (url, param))
         
-        
-        
         if purl not in self.downProc.keys():
             self.toDownload.remove(purl)
             x = purl
@@ -165,10 +171,6 @@ class Jukebox:
         if self.param.lower() != 'loop':
             self.send_msg_channel('Playing <a href="%s">%s</a>' % (url,url))
         # time.sleep(0.5)
-
-            
-        # self.playing = True
-
 
             
     def add_to_playlist(self, url):
@@ -195,7 +197,7 @@ class Jukebox:
             os.remove(os.path.expanduser(batchfile))
         except:
             True
-        command = "youtube-dl -4 --no-warnings --flat-playlist -j " + url + ' | jq -r "%s" >> %s' % (key,batchfile)
+        command = 'youtube-dl -4 --no-warnings --flat-playlist -j %s | jq -r "%s" >> %s' % (url,key,batchfile)
         thbatch = sp.Popen(command, shell = True)
         thbatch.wait()
         f = open(os.path.expanduser(batchfile))
@@ -209,13 +211,10 @@ class Jukebox:
             self.send_msg_channel('Adding song <a href="%s">%s</a> to the list' % (url,url))
         else:
             self.send_msg_channel('Adding playlist <a href="%s">%s</a> to the list' % (url,url))
-        self.toDownload += l
+       self.toDownload += l
         self.toPlay += l
         f.close()
-        #self.downProc[url] = Process(target = self.download, args=(url,))
-        #self.downProc[url].start()
-        #self.play(url)
-        
+
         
     def message_received(self,text):
         message = text.message
