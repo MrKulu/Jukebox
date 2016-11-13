@@ -48,7 +48,6 @@ class LinkHandler:
     def __init__(self,url=None,options=[]):
         self.url = url
         self.options = options
-        self.sender = sender
         self.started = False
         self.downloaded = False
         
@@ -174,45 +173,45 @@ class Jukebox:
         # time.sleep(0.5)
 
             
-    def add_to_playlist(self, url):
-        param=''
-        if len(url.split(' ',1)) > 1:
-            param,url = url.split(' ',1)
-            param += ' '
-        c = sqlite3.connect(self.jsonreadpath)
-        try:
-            listo = c.execute("select * from jsontable") # TODO
-        except:
-            c.execute("create table jsontable (web text,key text,gu text)")
-            listo=[]
-        c.commit()
-        key = ".webpage_url"
-        gu = ""
-        for u in listo:
-            if u[0] in url:
-                key = u[1]
-                gu = u[2]
-        c.close()
-        batchfile = "~/.musiccache/%s.batch" % (hashlib.sha1(url).hexdigest())
-        try:
-            os.remove(os.path.expanduser(batchfile))
-        except:
-            True
-        command = 'youtube-dl -4 --no-warnings --flat-playlist -j %s | jq -r "%s" >> %s' % (url,key,batchfile)
-        sp.call(command, shell = True)
-        f = open(os.path.expanduser(batchfile))
-        l = []
-        nl = f.readline().replace('\n','')
-        while nl != '':
-            l += [LinkHandler(url=gu+nl,options = param.split())]
+    def add_to_playlist(self, url, options=[]):
+        if url.startswith("http"):
+            c = sqlite3.connect(self.jsonreadpath)
+            try:
+                listo = c.execute("select * from jsontable") # TODO
+            except:
+                c.execute("create table jsontable (web text,key text,gu text)")
+                listo=[]
+            c.commit()
+            key = ".webpage_url"
+            gu = ""
+            for u in listo:
+                if u[0] in url:
+                    key = u[1]
+                    gu = u[2]
+            c.close()
+            batchfile = "~/.musiccache/%s.batch" % (hashlib.sha1(url).hexdigest())
+            try:
+                os.remove(os.path.expanduser(batchfile))
+            except:
+                True
+            command = 'youtube-dl -4 --no-warnings --flat-playlist -j %s | jq -r "%s" >> %s' % (url,key,batchfile)
+            sp.call(command, shell = True)
+            f = open(os.path.expanduser(batchfile))
+            l = []
             nl = f.readline().replace('\n','')
-        if len(l) == 1:
-            l = [LinkHandler(url=url,options = param.split())]
-            self.send_msg_channel('Adding song <a href="%s">%s</a> to the list' % (url,url))
+            while nl != '':
+                l += [LinkHandler(url=gu+nl,options = options)]
+                nl = f.readline().replace('\n','')
+            if len(l) == 1:
+                l = [LinkHandler(url=url,options = options)]
+                self.send_msg_channel('Adding song <a href="%s">%s</a> to the list' % (url,url))
+            else:
+                self.send_msg_channel('Adding playlist <a href="%s">%s</a> to the list' % (url,url))
+            self.playlist += l
+            f.close()
         else:
-            self.send_msg_channel('Adding playlist <a href="%s">%s</a> to the list' % (url,url))
-        self.playlist += l
-        f.close()
+            self.send_msg_channel('Provided options is not an url')
+            log.debug('Trying to add %s to the playlist' % url)
 
         
     def message_received(self,text):
@@ -227,39 +226,35 @@ class Jukebox:
             else:
                 return
 
-            if command == "add" and parameter: # TODO
-                param=''
+            if command == "add" and parameter:
+                options=[]
                 if len(parameter.split(' ',1)) > 1 and not get_url(parameter):
-                    param,parameter = parameter.split(' ',1)
-                    param += ' '
-                self.add_to_playlist(param.lower() + get_url(parameter))
+                    options = parameter.split(' ',1)
+                    urlp = options.pop()
+                self.add_to_playlist(get_url(urlp), options = options)
                 
-            elif command == "loop": # TODO
-                self.add_to_playlist("loop " + get_url(parameter))
+            elif command == "loop":
+                self.add_to_playlist(get_url(parameter), options=["loop"])
 
             elif command == "skip":
                 self.stop()                
 
-            elif command == 'kill': # TODO
-                self.toPlay = []
-                self.toDownload = []
+            elif command == 'kill':
+                self.playlist = []
                 self.stop()
                 ke = self.downProc.keys()
                 for i in ke:
                     self.downProc[i].join()
                     del self.downProc[i]
-                self.downloading = False
                 self.exit = True
                 
-            elif command == "clear": # TODO
-                self.toPlay = []
-                self.toDownload = []
+            elif command == "clear":
+                self.playlist = []
                 self.stop()
                 ke = self.downProc.keys()
                 for i in ke:
                     self.downProc[i].join()
                     del self.downProc[i]
-                self.downloading = False
                
 
             elif command == 'volume':
@@ -269,12 +264,13 @@ class Jukebox:
                 else:
                     self.send_msg_channel("Current volume is " + str(int(self.volume*100)))
                     
-            elif command == 'jsonkey': # TODO
+            elif command == 'jsonkey':
                 self.update_jsonread(*(parameter.split(' ',2)))
 
-            elif command == "current": # TODO
-                if self.url is not None:
-                    self.send_msg_channel('Currently playing <a href="%s">%s</a>' % (self.url,self.url))
+            elif command == "current":
+                cur = LinkHandler.get_current()
+                if cur is not None:
+                    self.send_msg_channel('Currently playing <a href="%s">%s</a>' % (cur.url,cur.url))
                 else:
                     self.send_msg_channel("Nothing is currently playing")
                     
@@ -282,8 +278,10 @@ class Jukebox:
                 self.randomize = not self.randomize
                 if self.randomize:
                     self.send_msg_channel("Randomizer On")
+                    log.debug('Randomizer On')
                 else:
                     self.send_msg_channel("Randomizer Off")
+                    log.debug('Randomizer Off')
                     
             elif command == "help":
                 self.send_msg_channel("Available commands are !add, !loop, !skip, !kill, !clear, !volume, !jsonkey, !current, !randomize")
