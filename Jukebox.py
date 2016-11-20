@@ -81,6 +81,9 @@ class LinkHandler:
             self.started = True
             log.debug("Started playing %s" % self.url)
             return True
+            
+    def get_key(self):
+        return self.url
 
 
 
@@ -92,7 +95,8 @@ class Jukebox:
         self.exit = False
         self.nbexit = 0
         # self.thread = None
-        self.volume = 0.5
+        self.volume = 0.5 # Add a config file
+        self.n_download = 1 # Add a config file
         self.downProc = {}
         # self.toDownload = []
         # self.toPlay = []
@@ -289,57 +293,56 @@ class Jukebox:
             else:
                 self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !skip, !kill, !clear, !volume, !jsonkey, !current, !randomize")
         
-    def loop(self): # TODO
+    def loop(self):
         while not self.exit:
-            if self.toDownload != [] and not self.downloading:
-                x = self.toDownload.pop(0)
-                self.downProc[x] = Process(target = self.download, args=(x,))
-                self.downProc[x].start()
-                self.downloading = True
-                self.predownpurl = x
-            elif self.downloading and not self.downProc[self.predownpurl].is_alive():
-                self.downloading = False
-                self.predownpurl = None
+            # Download next song
+            todownload = filter(lambda x : not x.downloaded,self.playlist)
+            if todownload != [] and len(self.downProc) < self.n_download:
+                tdnext = todownload[0]
+                self.downProc[tdnext.get_key()] = Process(target = tdnext.download, args = ())
+                self.downProc[tdnext.get_key()].start()
                 
+            # Remove downloads when they are finished
+            for i in self.downProc:
+                if not self.downProc[i].is_alive():
+                    del self.downProc[i]
+                
+            # Manage the current song
             if self.playing:
                 while self.mumble.sound_output.get_buffer_size() > 0.5 and self.playing:
                     time.sleep(0.01)
                 self.mumble.sound_output.add_sound(audioop.mul(self.thread.stdout.read(1024), 2, self.volume))
-                if self.thread.poll() is not None:
+                if LinkHandler.get_current() is None:
                     while self.mumble.sound_output.get_buffer_size() > 0.45:
                         time.sleep(0.01)
-                    self.thread = None
                     self.playing = False
             else:
                 time.sleep(0.5)
-                if self.toPlay != []:
-                    if self.randomize and self.param != "loop":
-                        x = self.toPlay.pop(random.randint(0,len(self.toPlay)-1))
+                if self.playlist != []:
+                    if self.randomize:
+                        x = self.playlist.pop(random.randint(0,len(self.playlist)-1))
                     else:
-                        x = self.toPlay.pop(0)
+                        x = self.playlist.pop(0)
                     self.playing = True
-                    self.play(x)
+                    x.play()
  
 
         while self.mumble.sound_output.get_buffer_size() > 0:
             time.sleep(0.01)
         time.sleep(0.5)
         
-    def stop(self): # TODO
+    def stop(self):
         if self.thread:
             self.playing = False
             time.sleep(0.5)
-            self.thread.kill()
-            self.thread = None
-            self.url = None
-            self.param = ''
+            LinkHandler.stop()
     
     def send_msg_channel(self, msg, channel=None):
         if not channel:
             channel = self.mumble.channels[self.mumble.users.myself['channel_id']]
         channel.send_text_message(msg)
 
-    def update_jsonread(self,website,jsonkey=".webpage_url",geturl=""): # TODO
+    def update_jsonread(self,website,jsonkey=".webpage_url",geturl=""): # TODO :(
         if re.match("^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$",website) is None:
             self.send_msg_channel("The website name is not valid")
         elif re.match("[\/\w \.-]*",jsonkey) is None:
