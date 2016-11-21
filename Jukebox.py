@@ -66,6 +66,8 @@ class LinkHandler:
         
     def play(self):
         if (not self.downloaded or self.started):
+            if self.started:
+                log.warning("Trying to play a previously played song")
             return False
         else:        
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
@@ -319,12 +321,12 @@ class Jukebox:
             else:
                 time.sleep(0.5)
                 if self.playlist != []:
+                    ind = 0
                     if self.randomize:
-                        x = self.playlist.pop(random.randint(0,len(self.playlist)-1))
-                    else:
-                        x = self.playlist.pop(0)
-                    self.playing = True
-                    x.play()
+                        ind = random.randint(0,len(self.playlist)-1)
+                    if self.playlist[ind].play():
+                        self.playlist.pop(ind)
+                        self.playing = True
  
 
         while self.mumble.sound_output.get_buffer_size() > 0:
