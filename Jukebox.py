@@ -306,7 +306,8 @@ class Jukebox:
                 self.downProc[tdnext.get_key()].start()
                 
             # Remove downloads when they are finished
-            for i in self.downProc:
+            ke = self.downProc.keys()
+            for i in ke:
                 if not self.downProc[i].is_alive():
                     del self.downProc[i]
                 
