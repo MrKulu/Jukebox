@@ -234,6 +234,7 @@ class Jukebox:
 
             if command == "add" and parameter:
                 options=[]
+                urlp = parameter
                 if len(parameter.split(' ',1)) > 1 and not get_url(parameter):
                     options = parameter.split(' ',1)
                     urlp = options.pop()
@@ -334,10 +335,9 @@ class Jukebox:
         time.sleep(0.5)
         
     def stop(self):
-        if self.thread:
-            self.playing = False
-            time.sleep(0.5)
-            LinkHandler.stop()
+        self.playing = False
+        time.sleep(0.5)
+        LinkHandler.stop()
     
     def send_msg_channel(self, msg, channel=None):
         if not channel:
