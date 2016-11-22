@@ -32,7 +32,7 @@ class LinkHandler:
     
     @classmethod
     def stop(cls):
-        if cls.thread is not None:
+        if cls.__thread is not None:
             if cls.__thread.pull() is not None:
                 cls.__thread.terminate()
                 log.debug("Stoped playing %s" % cls.__current.url)
@@ -41,7 +41,7 @@ class LinkHandler:
 
     @classmethod
     def get_current(cls):
-        if cls.thread.pull() is None:
+        if cls.__thread.pull() is None:
             cls.__current = None
             cls.__thread = None
         return cls.__current
@@ -63,7 +63,7 @@ class LinkHandler:
             command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg', '-o', filename, '-x', "--audio-format", "opus", self.url]
             sp.call(command_yt)
             
-            self.downloaded = True
+            # self.downloaded = True
             log.debug("Downloading for %s complete" % self.url)
         
     def play(self):
@@ -301,16 +301,19 @@ class Jukebox:
     def loop(self):
         while not self.exit:
             # Download next song
-            todownload = filter(lambda x : not x.downloaded,self.playlist)
-            if todownload != [] and len(self.downProc) < self.n_download:
-                tdnext = todownload[0]
-                self.downProc[tdnext.get_key()] = Process(target = tdnext.download, args = ())
-                self.downProc[tdnext.get_key()].start()
+            if len(self.downProc) < self.n_download:
+                todownload = filter(lambda x : not x.downloaded and (x.get_key() not in self.downProc.keys()),self.playlist)
+                if todownload != []:
+                    tdnext = todownload[0]
+                    self.downProc[tdnext.get_key()] = Process(target = tdnext.download, args = ())
+                    self.downProc[tdnext.get_key()].start()
                 
             # Remove downloads when they are finished
             ke = self.downProc.keys()
             for i in ke:
                 if not self.downProc[i].is_alive():
+                    for pll in filter(lambda x : x.get_key() == i,self.playlist):
+                        pll.downloaded = True
                     del self.downProc[i]
                 
             # Manage the current song
