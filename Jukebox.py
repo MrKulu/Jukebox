@@ -30,19 +30,21 @@ class LinkHandler:
     __thread = None
     __current = None
     
-    def stop():
-        if LinkHandler.thread is not None:
-            if Linkhandler.__thread.pull() is not None:
-                LinkHandler.__thread.terminate()
-                log.debug("Stoped playing %s" % LinkHandler.__current.url)
-            LinkHandler.__thread = None
-            LinkHandler.__current = None
+    @classmethod
+    def stop(cls):
+        if cls.thread is not None:
+            if cls.__thread.pull() is not None:
+                cls.__thread.terminate()
+                log.debug("Stoped playing %s" % cls.__current.url)
+            cls.__thread = None
+            cls.__current = None
 
-    def get_current():
-        if Linkhandler.thread.pull() is None:
-            LinkHandler.__current = None
-            LinkHandler.__thread = None
-        return LinkHandler.__current
+    @classmethod
+    def get_current(cls):
+        if cls.thread.pull() is None:
+            cls.__current = None
+            cls.__thread = None
+        return cls.__current
     
     
     def __init__(self,url=None,options=[]):
