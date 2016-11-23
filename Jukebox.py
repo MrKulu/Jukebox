@@ -47,8 +47,8 @@ class LinkHandler:
         return cls.__current
         
     @classmethod
-    def get_thread(cls):
-        return cls.__thread
+    def read(cls,n):
+        return cls.__thread.stdout.read(n)
     
     
     def __init__(self,url=None,options=[]):
@@ -324,7 +324,7 @@ class Jukebox:
             if self.playing:
                 while self.mumble.sound_output.get_buffer_size() > 0.5 and self.playing:
                     time.sleep(0.01)
-                self.mumble.sound_output.add_sound(audioop.mul(LinkHandler.get_thread().stdout.read(1024), 2, self.volume))
+                self.mumble.sound_output.add_sound(audioop.mul(LinkHandler.read(1024), 2, self.volume))
                 if LinkHandler.get_current() is None:
                     while self.mumble.sound_output.get_buffer_size() > 0.45:
                         time.sleep(0.01)
