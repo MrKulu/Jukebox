@@ -33,7 +33,7 @@ class LinkHandler:
     @classmethod
     def stop(cls):
         if cls.__thread is not None:
-            if cls.__thread.pull() is not None:
+            if cls.__thread.poll() is not None:
                 cls.__thread.terminate()
                 log.debug("Stoped playing %s" % cls.__current.url)
             cls.__thread = None
@@ -41,7 +41,7 @@ class LinkHandler:
 
     @classmethod
     def get_current(cls):
-        if cls.__thread.pull() is None:
+        if cls.__thread.poll() is None:
             cls.__current = None
             cls.__thread = None
         return cls.__current
