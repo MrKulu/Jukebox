@@ -336,8 +336,10 @@ class Jukebox:
                     if self.randomize:
                         ind = random.randint(0,len(self.playlist)-1)
                     if self.playlist[ind].play():
-                        self.playlist.pop(ind)
+                        x = self.playlist.pop(ind)
+                        x = self.playlist.pop(ind)
                         self.playing = True
+                        self.send_msg_channel('Started playing <a href="%s">%s</a> to the list' % (x.url,x.url))
  
 
         while self.mumble.sound_output.get_buffer_size() > 0:
