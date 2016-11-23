@@ -23,7 +23,7 @@ import subprocess as sp
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
-VERSION = "0.1a"
+VERSION = "0.2"
 
 class LinkHandler:
     
@@ -67,7 +67,6 @@ class LinkHandler:
             command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg', '-o', filename, '-x', "--audio-format", "opus", self.url]
             sp.call(command_yt)
             
-            # self.downloaded = True
             log.debug("Downloading for %s complete" % self.url)
         
     def play(self):
@@ -102,16 +101,11 @@ class Jukebox:
         self.url = None
         self.exit = False
         self.nbexit = 0
-        # self.thread = None
+
         self.volume = 0.5 # Add a config file
         self.n_download = 1 # Add a config file
         self.downProc = {}
-        # self.toDownload = []
-        # self.toPlay = []
-        # self.downloading = False
-        # self.param = ''
         self.randomize = False
-        # self.predownpurl = None
         self.jsonreadpath = jsonread
         self.playlist = []
 
@@ -126,63 +120,6 @@ class Jukebox:
             self.mumble.channels.find_by_name(channel).move_in()
         self.mumble.set_bandwidth(200000)
         self.loop()
-
-    def download(self,purl):
-        param = ''
-        url = purl
-        if len(purl.split(' ',1)) > 1:
-            param,url = purl.split(' ',1)
-            
-        log.debug("Started downloading %s (parameter = %s)" % (url, param))
-        # self.downloading = True
-        filename = '~/.musiccache/%s.opus' % (hashlib.sha1(url).hexdigest())
-        command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg', '-o', filename, '-x', "--audio-format", "opus", url]
-        th = sp.Popen(command_yt)
-        tmout = time.time()
-        while time.time() - tmout < 3600 and th.poll() is None:
-            time.sleep(0.1)
-        if time.time() - tmout >= 3600:
-            self.send_msg_channel("There ha%s been an i%s%sue during download: Procce%s%s didn't terminate after an hour. Aborting")        
-        log.debug("Finished downloading %s (parameter = %s)" % (url, param))            
-        # self.downloading = False
-
-    def play(self,purl):
-        param = ''
-        url = purl
-        if len(purl.split(' ',1)) > 1:
-            param,url = purl.split(' ',1)
-            
-
-        if param.lower() == "loop":
-            self.toPlay = [purl] + self.toPlay
-            self.toDownload = [purl] + self.toDownload
-        filename = '~/.musiccache/%s.opus' % (hashlib.sha1(url).hexdigest())
-        
-        log.debug("Waiting for start of download of %s (parameter = %s)" % (url, param))
-        
-        if purl not in self.downProc.keys():
-            self.toDownload.remove(purl)
-            x = purl
-            self.downProc[x] = Process(target = self.download, args=(x,))
-            self.downProc[x].start()
-        
-        log.debug("Waiting for %s to finish downloading (parameter = %s)" % (url, param))
-        
-        self.downProc[purl].join()
-        del self.downProc[purl]
-        
-        log.debug(" Started playing %s (parameter = %s)" % (url, param))
-        
-        command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
-        self.url = url
-        
-        # time.sleep(0.5)
-        self.thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
-
-        self.param = param
-        if self.param.lower() != 'loop':
-            self.send_msg_channel('Playing <a href="%s">%s</a>' % (url,url))
-        # time.sleep(0.5)
 
             
     def add_to_playlist(self, url, options=[]):
@@ -338,7 +275,7 @@ class Jukebox:
                     if self.playlist[ind].play():
                         x = self.playlist.pop(ind)
                         self.playing = True
-                        self.send_msg_channel('Started playing <a href="%s">%s</a> to the list' % (x.url,x.url))
+                        self.send_msg_channel('Started playing <a href="%s">%s</a>' % (x.url,x.url))
  
 
         while self.mumble.sound_output.get_buffer_size() > 0:
