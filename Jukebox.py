@@ -6,7 +6,6 @@ import sys
 import random
 import string
 import time
-import pickle
 import re
 import math
 import sqlite3
@@ -64,7 +63,7 @@ class LinkHandler:
             log.debug("Starting download for %s" % self.url)
             
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
-            command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg', '-o', filename, '-x', "--audio-format", "opus", self.url]
+            command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg','--no-playlist', '-o', filename, '-x', "--audio-format", "opus", self.url]
             sp.call(command_yt)
             
             log.debug("Downloading for %s complete" % self.url)
@@ -116,11 +115,21 @@ class Jukebox:
         self.mumble.start()  # start the mumble thread
         self.mumble.is_ready()  # wait for the connection
         self.mumble.users.myself.unmute()  # make sure the user is not muted
+        self.set_comment_info()
         if channel != "":
             self.mumble.channels.find_by_name(channel).move_in()
         self.mumble.set_bandwidth(200000)
         self.loop()
 
+    def set_comment_info(self):
+        r = "Volume: "+str(self.volume)+ " || "
+        u = LinkHandler.get_current()
+        if u == None:
+            r += "Idle"
+        else:
+            r += "Playing " + u.url()
+        self.mumble.users.myself.comment(r)
+        
             
     def add_to_playlist(self, url, options=[]):
         if url.startswith("http"):
@@ -143,7 +152,7 @@ class Jukebox:
                 os.remove(os.path.expanduser(batchfile))
             except:
                 True
-            command = 'youtube-dl -4 --no-warnings --flat-playlist -j %s | jq -r "%s" >> %s' % (url,key,batchfile)
+            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -j %s | jq -r "%s" >> %s' % (url,key,batchfile)
             sp.call(command, shell = True)
             f = open(os.path.expanduser(batchfile))
             l = []
@@ -154,7 +163,7 @@ class Jukebox:
             if len(l) == 1:
                 l = [LinkHandler(url=url,options = options)]
                 self.send_msg_channel('Adding song <a href="%s">%s</a> to the list' % (url,url))
-            else:
+            elif len(l) > 1:
                 self.send_msg_channel('Adding playlist <a href="%s">%s</a> to the list' % (url,url))
             self.playlist += l
             f.close()
@@ -211,6 +220,7 @@ class Jukebox:
                 if parameter is not None and parameter.isdigit() and int(parameter) >= 0 and int(parameter) <= 100:
                     self.volume = float(float(parameter) / 100)
                     self.send_msg_channel("Volume has been set to " + str(int(self.volume*100)))
+                    self.set_comment_info()
                 else:
                     self.send_msg_channel("Current volume is " + str(int(self.volume*100)))
                     
@@ -276,6 +286,7 @@ class Jukebox:
                         x = self.playlist.pop(ind)
                         self.playing = True
                         self.send_msg_channel('Started playing <a href="%s">%s</a>' % (x.url,x.url))
+                self.set_comment_info()
  
 
         while self.mumble.sound_output.get_buffer_size() > 0:
@@ -286,6 +297,7 @@ class Jukebox:
         self.playing = False
         time.sleep(0.5)
         LinkHandler.stop()
+        self.set_comment_info()
     
     def send_msg_channel(self, msg, channel=None):
         if not channel:
