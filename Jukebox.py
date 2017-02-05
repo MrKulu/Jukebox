@@ -2,6 +2,7 @@
 
 import httplib2
 import os
+import signal
 import sys
 import random
 import string
@@ -32,15 +33,19 @@ class LinkHandler:
     @classmethod
     def stop(cls):
         if cls.__thread is not None:
-            if cls.__thread.poll() is None:
-                cls.__thread.terminate()
-                log.debug("Stoped playing %s" % cls.__current.url)
+            # if cls.__thread.poll() is None:
+            os.killpg(os.getpgid(cls.__thread.pid),signal.SIGTERM)
+            log.debug("Stoped playing %s" % cls.__current.url)
             cls.__thread = None
             cls.__current = None
 
     @classmethod
     def get_current(cls):
-        if cls.__thread.poll() is not None:
+        try:
+            if cls.__thread.poll() is not None:
+                cls.__current = None
+                cls.__thread = None
+        except:
             cls.__current = None
             cls.__thread = None
         return cls.__current
@@ -61,9 +66,8 @@ class LinkHandler:
             log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
         else:
             log.debug("Starting download for %s" % self.url)
-            
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
-            command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg','--no-playlist', '-o', filename, '-x', "--audio-format", "opus", self.url]
+            command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg','--no-playlist', '-o', filename, '-x', "--audio-format", "opus", self.url.replace('&','\&')]
             sp.call(command_yt)
             
             log.debug("Downloading for %s complete" % self.url)
@@ -83,7 +87,7 @@ class LinkHandler:
 
             LinkHandler.stop()
             LinkHandler.__current = self
-            LinkHandler.__thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
+            LinkHandler.__thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480, preexec_fn=os.setsid)
             self.started = True
             log.debug("Started playing %s" % self.url)
             return True
@@ -122,12 +126,12 @@ class Jukebox:
         self.loop()
 
     def set_comment_info(self):
-        r = "Volume: "+str(self.volume)+ " || "
-        u = LinkHandler.get_current()
-        if u == None:
-            r += "Idle"
+        r = "Volume "+str(int(self.volume*100))+ " "
+        um = LinkHandler.get_current()
+        if um == None:
+            r += u" ♯ Idle"
         else:
-            r += "Playing " + u.url()
+            r += u" ♫ Playing " + um.url
         self.mumble.users.myself.comment(r)
         
             
@@ -152,7 +156,7 @@ class Jukebox:
                 os.remove(os.path.expanduser(batchfile))
             except:
                 True
-            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -j %s | jq -r "%s" >> %s' % (url,key,batchfile)
+            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -j %s | jq -r "%s" >> %s' % (url.replace('&','\&'),key,batchfile)
             sp.call(command, shell = True)
             f = open(os.path.expanduser(batchfile))
             l = []
