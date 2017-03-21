@@ -12,7 +12,7 @@ import sqlite3
 import audioop
 import hashlib
 import argparse
-import logging as log
+import logging
 from codecs import open
 from shutil import copyfile
 from multiprocessing import Process
@@ -23,6 +23,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
 VERSION = "0.2"
+
+log = logging.getLogger(__name__)
 
 class LinkHandler:
     
@@ -200,9 +202,10 @@ class Jukebox:
 
             elif command == 'kill':
                 self.playlist = []
-                self.stop()
+                self.stop()                        
                 ke = self.downProc.keys()
                 for i in ke:
+                    self.downProc[i].terminate()
                     self.downProc[i].join()
                     del self.downProc[i]
                 self.exit = True
@@ -212,9 +215,9 @@ class Jukebox:
                 self.stop()
                 ke = self.downProc.keys()
                 for i in ke:
+                    self.downProc[i].terminate()
                     self.downProc[i].join()
-                    del self.downProc[i]
-               
+                    del self.downProc[i]                
 
             elif command == 'volume':
                 if parameter is not None and parameter.isdigit() and int(parameter) >= 0 and int(parameter) <= 100:
@@ -358,6 +361,8 @@ if __name__ == "__main__":
     
     p.add_argument('--channel','-c', default='', help='The channel to enter on connection')
     
+    p.add_argument('--log','-l',default='', help='The log file (default = stderr)')
+    
     p.add_argument('--jsonread',default="jsonread.db", help='The path to the jsonread file')
     
     p.add_argument('--verbose','-v',action='store_true',help='Verbose mode')
@@ -367,14 +372,22 @@ if __name__ == "__main__":
     p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 
     args = p.parse_args()
-    loglvl = log.WARNING
+    loglvl = logging.WARNING
     if args.verbose:
-        loglvl = log.INFO
+        loglvl = logging.INFO
     if args.debug:
-        loglvl = log.DEBUG
+        loglvl = logging.DEBUG
     if args.silent:
-        loglvl = log.ERROR
+        loglvl = logging.ERROR
     
-    log.basicConfig(format="<%(filename)s> [%(levelname)s] %(message)s",level=loglvl)
+    log.setLevel(loglvl)
+    if args.log != '':
+        ch = logging.StreamHandler(args.log)
+    else:
+        ch = logging.StreamHandler()
+    ch.setLevel(loglvl)
+    formatter = logging.Formatter('%(asctime)s | <%(filename)s> [%(levelname)s] %(message)s')
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
     
     m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel,user=args.name)
