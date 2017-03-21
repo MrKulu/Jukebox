@@ -17,14 +17,13 @@ from codecs import open
 from shutil import copyfile
 from multiprocessing import Process
 import subprocess as sp
+import ConfigParser
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
 VERSION = "0.2"
-
-log = logging.getLogger(__name__)
 
 class LinkHandler:
     
@@ -36,7 +35,7 @@ class LinkHandler:
         if cls.__thread is not None:
             if cls.__thread.poll() is None:
                 cls.__thread.terminate()
-                log.debug("Stoped playing %s" % cls.__current.url)
+                self.log.debug("Stoped playing %s" % cls.__current.url)
             cls.__thread = None
             cls.__current = None
 
@@ -57,23 +56,24 @@ class LinkHandler:
         self.options = options
         self.started = False
         self.downloaded = False
+        self.log = logging.getLogger(__name__)
         
     def download(self):
         if self.downloaded:
-            log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
+            self.log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
         else:
-            log.debug("Starting download for %s" % self.url)
+            self.log.debug("Starting download for %s" % self.url)
             
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
             command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg','--no-playlist', '-o', filename, '-x', "--audio-format", "opus", self.url]
             sp.call(command_yt)
             
-            log.debug("Downloading for %s complete" % self.url)
+            self.log.debug("Downloading for %s complete" % self.url)
         
     def play(self):
         if (not self.downloaded or self.started):
             if self.started:
-                log.warning("Trying to play a previously played song")
+                self.log.warning("Trying to play a previously played song")
             return False
         else:        
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
@@ -87,7 +87,7 @@ class LinkHandler:
             LinkHandler.__current = self
             LinkHandler.__thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
             self.started = True
-            log.debug("Started playing %s" % self.url)
+            self.log.debug("Started playing %s" % self.url)
             return True
             
     def get_key(self):
@@ -96,19 +96,27 @@ class LinkHandler:
 
 
 class Jukebox:
-    def __init__(self, host, user="Jukebox", port=64738, password="", channel="",jsonread="jsonread.db"):
+    def __init__(self, host, user="Jukebox", port=64738, password="", channel="",jsonread="jsonread.db", config=None):
 
         self.playing = False
         self.url = None
         self.exit = False
         self.nbexit = 0
 
-        self.volume = 0.5 # Add a config file
-        self.n_download = 1 # Add a config file
+        try:
+            self.volume = config.get("Bot","volume")
+        except:
+            self.volume = 0.5
+        try:
+            self.n_download = config.get("Bot","download")
+        except:
+            self.n_download = 1
         self.downProc = {}
         self.randomize = False
         self.jsonreadpath = jsonread
         self.playlist = []
+        
+        self.log = logging.getLogger(__name__)
 
         self.mumble = pymumble.Mumble(host, user=user, port=port, password=password, reconnect=True,
                                       debug=False)
@@ -171,7 +179,7 @@ class Jukebox:
             f.close()
         else:
             self.send_msg_channel('Provided options is not an url')
-            log.debug('Trying to add %s to the playlist' % url)
+            self.log.debug('Trying to add %s to the playlist' % url)
 
         
     def message_received(self,text):
@@ -241,10 +249,10 @@ class Jukebox:
                 self.randomize = not self.randomize
                 if self.randomize:
                     self.send_msg_channel("Randomizer On")
-                    log.debug('Randomizer On')
+                    self.log.debug('Randomizer On')
                 else:
                     self.send_msg_channel("Randomizer Off")
-                    log.debug('Randomizer Off')
+                    self.log.debug('Randomizer Off')
                     
             elif command == "help":
                 self.send_msg_channel("Available commands are !add, !loop, !skip, !kill, !clear, !volume, !jsonkey, !current, !randomize")
@@ -349,26 +357,22 @@ def get_url(url):
         
 if __name__ == "__main__":
 
+    log = logging.getLogger(__name__)
+    
+
     p = argparse.ArgumentParser(description='A jukebox for Mumble.')
     
     p.add_argument('ip',metavar='server_ip',help='ip adress of the mumble server the script will try to connect to')
-    
     p.add_argument('--port',type=int,default=64738,help='The server port (default = 64738)')
-    
-    p.add_argument('--password', '-p', default='', help='The mumble server password if required')
-    
+    p.add_argument('--password', '-p', default='', help="The mumble server's password if required")
     p.add_argument('--name','-n', default='Jukebox', help='The name of the bot')
-    
     p.add_argument('--channel','-c', default='', help='The channel to enter on connection')
-    
     p.add_argument('--log','-l',default='', help='The log file (default = stderr)')
-    
     p.add_argument('--jsonread',default="jsonread.db", help='The path to the jsonread file')
     
     p.add_argument('--verbose','-v',action='store_true',help='Verbose mode')
     p.add_argument('--silent','-s',action='store_true',help='Silent mode')
     p.add_argument('--debug','-d',action='store_true',help='Debug mode')
-    
     p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 
     args = p.parse_args()
@@ -390,4 +394,19 @@ if __name__ == "__main__":
     ch.setFormatter(formatter)
     log.addHandler(ch)
     
-    m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel,user=args.name)
+    config = ConfigParser.SafeConfigParser()
+    try:
+        config.read('jukebox.cfg')
+    except:
+        c = open('jukebox.cfg',w)
+        c.write("""
+[Init]
+port=64738
+[Bot]
+volume=0.5
+download=1
+        """)
+        c.close()
+        config.read('jukebox.cfg')
+    
+    m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel,user=args.name,jsonread=args.jsonread,config=config)
