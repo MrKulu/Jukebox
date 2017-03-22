@@ -62,7 +62,7 @@ class LinkHandler:
         if self.downloaded:
             self.log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
         elif 'stream' in self.options:
-            self.log.warning("Trying to download a stream")
+            True
         else:
             self.log.debug("Starting download for %s" % self.url)
             
@@ -103,8 +103,10 @@ class LinkHandler:
                 self.log.warning("Trying to stream a downloaded song")
                 
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
-            os.remove(filename)
-            
+            try:
+                os.remove(os.path.expanduser(filename))
+            except:
+                True            
             command = "youtube-dl -w -4 --no-playlist %s -o - | ffmpeg -i - -ac 1 -f s16le -ar 48000 -" % self.url
 
             if 'loop' in self.options:
