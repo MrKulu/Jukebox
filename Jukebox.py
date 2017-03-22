@@ -61,6 +61,8 @@ class LinkHandler:
     def download(self):
         if self.downloaded:
             self.log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
+        elif 'stream' in self.options:
+            self.log.warning("Trying to download a stream")
         else:
             self.log.debug("Starting download for %s" % self.url)
             
@@ -75,6 +77,8 @@ class LinkHandler:
             if self.started:
                 self.log.warning("Trying to play a previously played song")
             return False
+        elif 'stream' in self.options:
+            self.stream()
         else:        
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
 
@@ -89,6 +93,32 @@ class LinkHandler:
             self.started = True
             self.log.debug("Started playing %s" % self.url)
             return True
+            
+    def stream(self):
+        if self.started:
+            self.log.warning("Trying to stream an already played song")
+            return False
+        else:
+            if self.downloaded:
+                self.log.warning("Trying to stream a downloaded song")
+                
+            filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
+            
+            command = "youtube-dl -w -4 --no-playlist %s -o - | ffmpeg -i pipe:0 -ac 1 -f s16le -ar 48000 -" % self.url
+
+            if 'loop' in self.options:
+                command += " | ffmpeg -f s161e -i - -c copy %s -c copy -;while true; do \nffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -\ndone" % (filename,filename)
+            # Vérifier que -c copy - marche
+            # Attention : Ne marche pas si un fichier existe déjà au nom de %(filename)s
+            
+            LinkHandler.stop()
+            LinkHandler.__current = self
+            LinkHandler.__thread = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=480)
+            self.started = True
+            self.log.debug("Started streaming %s" % self.url)
+            return True
+            
+            
             
     def get_key(self):
         return self.url
@@ -202,9 +232,22 @@ class Jukebox:
                     urlp = options.pop()
                 self.add_to_playlist(get_url(urlp), options = options)
                 
-            elif command == "loop":
-                self.add_to_playlist(get_url(parameter), options=["loop"])
+            elif command == "loop" and parameter:
+                options=[]
+                urlp = parameter
+                if len(parameter.split(' ',1)) > 1 and not get_url(parameter):
+                    options = parameter.split(' ',1)
+                    urlp = options.pop()
+                self.add_to_playlist(get_url(parameter), options=options+["loop"])
 
+            elif command == "stream" and parameter:
+                options=[]
+                urlp = parameter
+                if len(parameter.split(' ',1)) > 1 and not get_url(parameter):
+                    options = parameter.split(' ',1)
+                    urlp = options.pop()
+                self.add_to_playlist(get_url(urlp), options = options+["stream"])
+                
             elif command == "skip":
                 self.stop()                
 
