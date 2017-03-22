@@ -105,11 +105,10 @@ class LinkHandler:
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
             os.remove(filename)
             
-            command = "youtube-dl -w -4 --no-playlist %s -o - | ffmpeg -i pipe:0 -ac 1 -f s16le -ar 48000 -" % self.url
+            command = "youtube-dl -w -4 --no-playlist %s -o - | ffmpeg -i - -ac 1 -f s16le -ar 48000 -" % self.url
 
             if 'loop' in self.options:
-                command += " | ffmpeg -f s161e -i - -c copy %s -c copy -;while true; do \nffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -\ndone" % (filename,filename)
-            # Vérifier que -c copy - marche
+                command = "youtube-dl -w -4 --no-playlist %s -o - | ffmpeg -i - -c opus -ar 48000 -ac 1 -f tee -map 0:a \"[f=s16le]%s|[f=s16le]pipe:\";while true; do \nffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -\ndone" % (self.url,filename,filename)
             
             LinkHandler.stop()
             LinkHandler.__current = self
