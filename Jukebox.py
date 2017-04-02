@@ -35,21 +35,25 @@ class LinkHandler:
         if cls.__thread is not None:
             if cls.__thread.poll() is None:
                 cls.__thread.terminate()
-                self.log.debug("Stoped playing %s" % cls.__current.url)
+                if cls.__current is not None:
+                    cls.__current.log.debug("Stoped playing %s" % cls.__current.url)
             cls.__thread = None
             cls.__current = None
 
     @classmethod
     def get_current(cls):
-        if cls.__thread.poll() is not None:
+        if cls.__thread is None or cls.__thread.poll() is not None:
             cls.__current = None
             cls.__thread = None
         return cls.__current
         
     @classmethod
     def read(cls,n):
-        return cls.__thread.stdout.read(n)
-    
+        if cls.__thread is not None:
+            return cls.__thread.stdout.read(n)
+        else:
+            cls.__current = None
+            return ""
     
     def __init__(self,url=None,options=[]):
         self.url = url
@@ -79,13 +83,14 @@ class LinkHandler:
             return False
         elif 'stream' in self.options:
             self.stream()
+            return True
         else:        
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
 
             command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
 
             if 'loop' in self.options:
-                command = "while true; do \n%s\ndone" % command
+                command = "while true; do %s ; done" % command
 
             LinkHandler.stop()
             LinkHandler.__current = self
@@ -99,18 +104,18 @@ class LinkHandler:
             self.log.warning("Trying to stream an already played song")
             return False
         else:
-            if self.downloaded:
-                self.log.warning("Trying to stream a downloaded song")
-                
+            
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
             try:
                 os.remove(os.path.expanduser(filename))
             except:
                 True            
-            command = "youtube-dl -w -4 --no-playlist %s -o - | ffmpeg -i - -ac 1 -f s16le -ar 48000 -" % self.url
+            command = "youtube-dl -w -4 --prefer-ffmpeg --no-playlist %s -o - | ffmpeg -i - -ac 1 -f s16le -ar 48000 -" % self.url
 
-            if 'loop' in self.options:
-                command = "youtube-dl -w -4 --no-playlist %s -o - | ffmpeg -i - -c opus -ar 48000 -ac 1 -f tee -map 0:a \"[f=s16le]%s|[f=s16le]pipe:\";while true; do \nffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -\ndone" % (self.url,filename,filename)
+            #if 'loop' in self.options:
+            #    command = "youtube-dl -w -4 --prefer-ffmpeg --no-playlist %s -o - | ffmpeg -i - -c opus -ac 1 -f s16le -ar 48000 -f tee -map 0:a \"%s|pipe:\";while true; do ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 - ; done" % (self.url,os.path.expanduser(filename),filename)
+            # TO FIX
+
             
             LinkHandler.stop()
             LinkHandler.__current = self
@@ -168,7 +173,7 @@ class Jukebox:
         if u == None:
             r += "Idle"
         else:
-            r += "Playing " + u.url()
+            r += "Playing " + u.url
         self.mumble.users.myself.comment(r)
         
             
@@ -226,27 +231,18 @@ class Jukebox:
                 return
 
             if command == "add" and parameter:
-                options=[]
-                urlp = parameter
-                if len(parameter.split(' ',1)) > 1 and not get_url(parameter):
-                    options = parameter.split(' ',1)
-                    urlp = options.pop()
+                options = parameter.split(' ')
+                urlp = options.pop()
                 self.add_to_playlist(get_url(urlp), options = options)
                 
             elif command == "loop" and parameter:
-                options=[]
-                urlp = parameter
-                if len(parameter.split(' ',1)) > 1 and not get_url(parameter):
-                    options = parameter.split(' ',1)
-                    urlp = options.pop()
-                self.add_to_playlist(get_url(parameter), options=options+["loop"])
+                options = parameter.split(' ')
+                urlp = options.pop()
+                self.add_to_playlist(get_url(urlp), options=options+["loop"])
 
             elif command == "stream" and parameter:
-                options=[]
-                urlp = parameter
-                if len(parameter.split(' ',1)) > 1 and not get_url(parameter):
-                    options = parameter.split(' ',1)
-                    urlp = options.pop()
+                options = parameter.split(' ')
+                urlp = options.pop()
                 self.add_to_playlist(get_url(urlp), options = options+["stream"])
                 
             elif command == "skip":
@@ -430,11 +426,12 @@ if __name__ == "__main__":
     
     log.setLevel(loglvl)
     if args.log != '':
-        ch = logging.StreamHandler(args.log)
+        # ch = logging.StreamHandler(args.log) TO FIX
+        ch = logging.StreamHandler()
     else:
         ch = logging.StreamHandler()
     ch.setLevel(loglvl)
-    formatter = logging.Formatter('%(asctime)s | <%(filename)s> [%(levelname)s] %(message)s')
+    formatter = logging.Formatter('<%(filename)s> [%(levelname)s] %(message)s')
     ch.setFormatter(formatter)
     log.addHandler(ch)
     
