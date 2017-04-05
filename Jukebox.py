@@ -13,6 +13,7 @@ import audioop
 import hashlib
 import argparse
 import logging
+import json
 from codecs import open
 from shutil import copyfile
 from multiprocessing import Process
@@ -23,7 +24,7 @@ import ConfigParser
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
-VERSION = "0.3b2"
+VERSION = "0.3b3"
 
 class LinkHandler:
     
@@ -64,6 +65,8 @@ class LinkHandler:
         self.title = title
         
     def download(self):
+        if self.title is None:
+            self.find_title()
         if self.downloaded:
             self.log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
         elif 'stream' in self.options:
@@ -83,9 +86,12 @@ class LinkHandler:
                 self.log.warning("Trying to play a previously played song")
             return False
         elif 'stream' in self.options:
+            if self.title is None:
+                self.get_found_title()
             self.stream()
             return True
-        else:        
+        else:
+            self.get_found_title()
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
 
             command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
@@ -125,13 +131,29 @@ class LinkHandler:
             self.log.debug("Started streaming %s" % self.url)
             return True
             
-            
-            
     def get_key(self):
         return self.url
 
+    def find_title(self):
+        titlefind = "~/.musiccache/%s.title" % (hashlib.sha1(self.url).hexdigest())
+        try:
+            os.remove(os.path.expanduser(titlefind))
+        except:
+            True
+        command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -J %s | jq -r ".title" >> %s' % (self.url,titlefind)
+        sp.call(command, shell = True)
 
-
+    def get_found_title(self):
+        titlefind = "~/.musiccache/%s.title" % (hashlib.sha1(self.url).hexdigest())
+        f = open(os.path.expanduser(titlefind))
+        ttl = f.readline()
+        if ttl != "":
+            self.title = ttl[:-1]
+        f.close()
+        try:
+            os.remove(os.path.expanduser(titlefind))
+        except:
+            True
 
 class Jukebox:
     def __init__(self, host, user="Jukebox", port=64738, password="", channel="", config=None):
@@ -176,7 +198,7 @@ class Jukebox:
             r += "Idle"
         else:
             if not self.hidden and u.title is not None:
-                r += "Playing " + u.title.encode("ascii","ignore")
+                r += "Playing " + u.title
             else:
                 r += "Playing " + u.url
         self.mumble.users.myself.comment(r)
@@ -189,18 +211,20 @@ class Jukebox:
                 os.remove(os.path.expanduser(batchfile))
             except:
                 True
-            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -j %s >> %s' % (url,batchfile)
+            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist --dump-single-json %s >> %s' % (url,batchfile)
             sp.call(command, shell = True)
             f = open(os.path.expanduser(batchfile))
-            fl = json.load(fl)
+            fl = json.load(f)
             ttl = None
-            if title in fl.keys():
+            if "title" in fl.keys():
                 ttl = fl["title"]
             oomm = "song"
             if "_type" in fl.keys() and fl["_type"] == "playlist":
                 oomm = "playlist"
+                ll = []
                 for ell in fl["entries"]:
-                    self.playlist.append(LinkHandler(url=ell["url"],options=options,title=ttl))
+                    ll.append(LinkHandler(url=ell["url"],options=options))
+                self.playlist += ll
             else:
                 self.playlist += [LinkHandler(url=url,options=options,title=ttl)]
                 
@@ -210,6 +234,10 @@ class Jukebox:
                 self.send_msg_channel('Adding %s <a href="%s">%s</a> to the list' % (oomm,url,url))
 
             f.close()
+            try:
+                os.remove(os.path.expanduser(batchfile))
+            except:
+                True
         else:
             self.send_msg_channel('Provided options is not an url')
             self.log.debug('Trying to add %s to the playlist' % url)
