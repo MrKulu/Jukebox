@@ -23,7 +23,7 @@ import ConfigParser
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
-VERSION = "0.2"
+VERSION = "0.3b2"
 
 class LinkHandler:
     
@@ -55,12 +55,13 @@ class LinkHandler:
             cls.__current = None
             return ""
     
-    def __init__(self,url=None,options=[]):
+    def __init__(self,url=None,options=[],title=None):
         self.url = url
         self.options = options
         self.started = False
         self.downloaded = False
         self.log = logging.getLogger(__name__)
+        self.title = title
         
     def download(self):
         if self.downloaded:
@@ -131,8 +132,9 @@ class LinkHandler:
 
 
 
+
 class Jukebox:
-    def __init__(self, host, user="Jukebox", port=64738, password="", channel="",jsonread="jsonread.db", config=None):
+    def __init__(self, host, user="Jukebox", port=64738, password="", channel="", config=None):
 
         self.playing = False
         self.url = None
@@ -149,7 +151,7 @@ class Jukebox:
             self.n_download = 1
         self.downProc = {}
         self.randomize = False
-        self.jsonreadpath = jsonread
+        self.hidden = False
         self.playlist = []
         
         self.log = logging.getLogger(__name__)
@@ -173,45 +175,40 @@ class Jukebox:
         if u == None:
             r += "Idle"
         else:
-            r += "Playing " + u.url
+            if not self.hidden and u.title is not None:
+                r += "Playing " + u.title.encode("ascii","ignore")
+            else:
+                r += "Playing " + u.url
         self.mumble.users.myself.comment(r)
         
             
     def add_to_playlist(self, url, options=[]):
         if url.startswith("http"):
-            c = sqlite3.connect(self.jsonreadpath)
-            try:
-                listo = c.execute("select * from jsontable") # TODO
-            except:
-                c.execute("create table jsontable (web text,key text,gu text)")
-                listo=[]
-            c.commit()
-            key = ".webpage_url"
-            gu = ""
-            for u in listo:
-                if u[0] in url:
-                    key = u[1]
-                    gu = u[2]
-            c.close()
             batchfile = "~/.musiccache/%s.batch" % (hashlib.sha1(url).hexdigest())
             try:
                 os.remove(os.path.expanduser(batchfile))
             except:
                 True
-            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -j %s | jq -r "%s" >> %s' % (url,key,batchfile)
+            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -j %s >> %s' % (url,batchfile)
             sp.call(command, shell = True)
             f = open(os.path.expanduser(batchfile))
-            l = []
-            nl = f.readline().replace('\n','')
-            while nl != '':
-                l += [LinkHandler(url=gu+nl,options = options)]
-                nl = f.readline().replace('\n','')
-            if len(l) == 1:
-                l = [LinkHandler(url=url,options = options)]
-                self.send_msg_channel('Adding song <a href="%s">%s</a> to the list' % (url,url))
-            elif len(l) > 1:
-                self.send_msg_channel('Adding playlist <a href="%s">%s</a> to the list' % (url,url))
-            self.playlist += l
+            fl = json.load(fl)
+            ttl = None
+            if title in fl.keys():
+                ttl = fl["title"]
+            oomm = "song"
+            if "_type" in fl.keys() and fl["_type"] == "playlist":
+                oomm = "playlist"
+                for ell in fl["entries"]:
+                    self.playlist.append(LinkHandler(url=ell["url"],options=options,title=ttl))
+            else:
+                self.playlist += [LinkHandler(url=url,options=options,title=ttl)]
+                
+            if not self.hidden and ttl is not None:
+                self.send_msg_channel('Adding %s <b>%s</b> to the list' % (oomm,ttl))
+            else:
+                self.send_msg_channel('Adding %s <a href="%s">%s</a> to the list' % (oomm,url,url))
+
             f.close()
         else:
             self.send_msg_channel('Provided options is not an url')
@@ -230,20 +227,10 @@ class Jukebox:
             else:
                 return
 
-            if command == "add" and parameter:
+            if command in ["add","loop","stream"] and parameter:
                 options = parameter.split(' ')
                 urlp = options.pop()
-                self.add_to_playlist(get_url(urlp), options = options)
-                
-            elif command == "loop" and parameter:
-                options = parameter.split(' ')
-                urlp = options.pop()
-                self.add_to_playlist(get_url(urlp), options=options+["loop"])
-
-            elif command == "stream" and parameter:
-                options = parameter.split(' ')
-                urlp = options.pop()
-                self.add_to_playlist(get_url(urlp), options = options+["stream"])
+                self.add_to_playlist(get_url(urlp), options = options+[command])
                 
             elif command == "skip":
                 self.stop()                
@@ -274,14 +261,14 @@ class Jukebox:
                     self.set_comment_info()
                 else:
                     self.send_msg_channel("Current volume is " + str(int(self.volume*100)))
-                    
-            elif command == 'jsonkey':
-                self.update_jsonread(*(parameter.split(' ',2)))
 
             elif command == "current":
                 cur = LinkHandler.get_current()
                 if cur is not None:
-                    self.send_msg_channel('Currently playing <a href="%s">%s</a>' % (cur.url,cur.url))
+                    if not self.hidden and cur.title is not None:
+                        self.send_msg_channel('Currently playing <b>%s</b>' % (cur.title))
+                    else:
+                        self.send_msg_channel('Currently playing <a href="%s">%s</a>' % (cur.url,cur.url))
                 else:
                     self.send_msg_channel("Nothing is currently playing")
                     
@@ -294,11 +281,20 @@ class Jukebox:
                     self.send_msg_channel("Randomizer Off")
                     self.log.debug('Randomizer Off')
                     
+            elif command == "hide":
+                self.hidden = not self.hidden
+                if self.hidden:
+                    self.send_msg_channel("Hide mode On")
+                    self.log.debug('Hide mode On')
+                else:
+                    self.send_msg_channel("Hide mode Off")
+                    self.log.debug('Hide mode Off')
+                    
             elif command == "help":
-                self.send_msg_channel("Available commands are !add, !loop, !skip, !kill, !clear, !volume, !jsonkey, !current, !randomize")
+                self.send_msg_channel("Available commands are !add, !loop, !stream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
               
             else:
-                self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !skip, !kill, !clear, !volume, !jsonkey, !current, !randomize")
+                self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !stream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
         
     def loop(self):
         while not self.exit:
@@ -336,7 +332,10 @@ class Jukebox:
                     if self.playlist[ind].play():
                         x = self.playlist.pop(ind)
                         self.playing = True
-                        self.send_msg_channel('Started playing <a href="%s">%s</a>' % (x.url,x.url))
+                        if not self.hidden and x.title is not None:
+                            self.send_msg_channel('Started playing <b>%s</b>' % (x.title))
+                        else:
+                            self.send_msg_channel('Started playing <a href="%s">%s</a>' % (x.url,x.url))
                 self.set_comment_info()
  
 
@@ -354,36 +353,6 @@ class Jukebox:
         if not channel:
             channel = self.mumble.channels[self.mumble.users.myself['channel_id']]
         channel.send_text_message(msg)
-
-    def update_jsonread(self,website,jsonkey=".webpage_url",geturl=""): # TODO :(
-        if re.match("^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$",website) is None:
-            self.send_msg_channel("The website name is not valid")
-        elif re.match("[\/\w \.-]*",jsonkey) is None:
-            self.send_msg_channel("The jsonkey is not valid")
-        else:
-            if get_url(geturl):
-                geturl = get_url(geturl)
-            c = sqlite3.connect(self.jsonreadpath)
-            b = False
-            key = None
-            gu = None
-            try:
-                listo = c.execute("select * from jsontable where web=?",(website,))
-                for u in listo:
-                    b = True
-                    key = u[1]
-                    gu = u[2]
-                c.execute("delete from jsontable where web=?",(website,))
-            except:
-                c.execute("create table jsontable (web text,key text,gu text)")
-            c.commit()
-            c.execute("insert into jsontable values (?,?,?)",(website,jsonkey,geturl,))
-            if b:
-                self.send_msg_channel("Updated %s for %s" % (self.jsonreadpath,website))
-            else:
-                self.send_msg_channel("Adding %s to %s" % (website,self.jsonreadpath))
-            c.commit()
-            c.close()
     
 def get_url(url):
     if url.startswith('http'):
@@ -408,7 +377,6 @@ if __name__ == "__main__":
     p.add_argument('--name','-n', default='Jukebox', help='The name of the bot')
     p.add_argument('--channel','-c', default='', help='The channel to enter on connection')
     p.add_argument('--log','-l',default='', help='The log file (default = stderr)')
-    p.add_argument('--jsonread',default="jsonread.db", help='The path to the jsonread file')
     
     p.add_argument('--verbose','-v',action='store_true',help='Verbose mode')
     p.add_argument('--silent','-s',action='store_true',help='Silent mode')
@@ -450,4 +418,4 @@ download=1
         c.close()
         config.read('jukebox.cfg')
     
-    m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel,user=args.name,jsonread=args.jsonread,config=config)
+    m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel,user=args.name,config=config)
