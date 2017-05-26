@@ -91,7 +91,8 @@ class LinkHandler:
             self.stream()
             return True
         else:
-            self.get_found_title()
+            if self.title is None:
+                self.get_found_title()
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
 
             command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
