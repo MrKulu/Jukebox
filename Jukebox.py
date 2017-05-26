@@ -24,7 +24,7 @@ import ConfigParser
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
-VERSION = "0.3b3"
+VERSION = "0.3b4"
 
 class LinkHandler:
     
@@ -214,30 +214,34 @@ class Jukebox:
             command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist --dump-single-json %s >> %s' % (url,batchfile)
             sp.call(command, shell = True)
             f = open(os.path.expanduser(batchfile))
-            fl = json.load(f)
-            ttl = None
-            if "title" in fl.keys():
-                ttl = fl["title"]
-            oomm = "song"
-            if "_type" in fl.keys() and fl["_type"] == "playlist":
-                oomm = "playlist"
-                ll = []
-                for ell in fl["entries"]:
-                    ll.append(LinkHandler(url=ell["url"],options=options))
-                self.playlist += ll
-            else:
-                self.playlist += [LinkHandler(url=url,options=options,title=ttl)]
-                
-            if not self.hidden and ttl is not None:
-                self.send_msg_channel('Adding %s <b>%s</b> to the list' % (oomm,ttl))
-            else:
-                self.send_msg_channel('Adding %s <a href="%s">%s</a> to the list' % (oomm,url,url))
-
-            f.close()
             try:
-                os.remove(os.path.expanduser(batchfile))
+                fl = json.load(f)
             except:
-                True
+                self.send_msg_channel('Invalid link <a href="%s">%s</a>'%(url,url))
+            else:
+                ttl = None
+                if "title" in fl.keys():
+                    ttl = fl["title"]
+                oomm = "song"
+                if "_type" in fl.keys() and fl["_type"] == "playlist":
+                    oomm = "playlist"
+                    ll = []
+                    for ell in fl["entries"]:
+                        ll.append(LinkHandler(url=ell["url"],options=options))
+                    self.playlist += ll
+                else:
+                    self.playlist += [LinkHandler(url=url,options=options,title=ttl)]
+                    
+                if not self.hidden and ttl is not None and not "hide" in options:
+                    self.send_msg_channel('Adding %s <b>%s</b> to the list' % (oomm,ttl))
+                else:
+                    self.send_msg_channel('Adding %s <a href="%s">%s</a> to the list' % (oomm,url,url))
+
+                f.close()
+                try:
+                    os.remove(os.path.expanduser(batchfile))
+                except:
+                    True
         else:
             self.send_msg_channel('Provided options is not an url')
             self.log.debug('Trying to add %s to the playlist' % url)
@@ -259,6 +263,11 @@ class Jukebox:
                 options = parameter.split(' ')
                 urlp = options.pop()
                 self.add_to_playlist(get_url(urlp), options = options+[command])
+                
+            elif command in ["hadd","hloop","hstream"] and parameter:
+                options = parameter.split(' ')
+                urlp = options.pop()
+                self.add_to_playlist(get_url(urlp), options = options+[command,"hide"])
                 
             elif command == "skip":
                 self.stop()                
@@ -293,7 +302,7 @@ class Jukebox:
             elif command == "current":
                 cur = LinkHandler.get_current()
                 if cur is not None:
-                    if not self.hidden and cur.title is not None:
+                    if not self.hidden and cur.title is not None and "hide" not in cur.options:
                         self.send_msg_channel('Currently playing <b>%s</b>' % (cur.title))
                     else:
                         self.send_msg_channel('Currently playing <a href="%s">%s</a>' % (cur.url,cur.url))
@@ -360,9 +369,9 @@ class Jukebox:
                     if self.playlist[ind].play():
                         x = self.playlist.pop(ind)
                         self.playing = True
-                        if not self.hidden and x.title is not None:
+                        if not self.hidden and x.title is not None and "hide" not in x.options:
                             self.send_msg_channel('Started playing <b>%s</b>' % (x.title))
-                        else:
+                        else:**
                             self.send_msg_channel('Started playing <a href="%s">%s</a>' % (x.url,x.url))
                 self.set_comment_info()
  
