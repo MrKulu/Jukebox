@@ -268,7 +268,7 @@ class Jukebox:
             elif command in ["hadd","hloop","hstream"] and parameter:
                 options = parameter.split(' ')
                 urlp = options.pop()
-                self.add_to_playlist(get_url(urlp), options = options+[command,"hide"])
+                self.add_to_playlist(get_url(urlp), options = options+[command[1:],"hide"])
                 
             elif command == "skip":
                 self.stop()                
@@ -329,10 +329,10 @@ class Jukebox:
                     self.log.debug('Hide mode Off')
                     
             elif command == "help":
-                self.send_msg_channel("Available commands are !add, !loop, !stream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
+                self.send_msg_channel("Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
               
             else:
-                self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !stream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
+                self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
         
     def loop(self):
         while not self.exit:
