@@ -372,7 +372,7 @@ class Jukebox:
                         self.playing = True
                         if not self.hidden and x.title is not None and "hide" not in x.options:
                             self.send_msg_channel('Started playing <b>%s</b>' % (x.title))
-                        else:**
+                        else:
                             self.send_msg_channel('Started playing <a href="%s">%s</a>' % (x.url,x.url))
                 self.set_comment_info()
  
