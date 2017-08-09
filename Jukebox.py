@@ -188,10 +188,10 @@ class LinkHandler:
             if self.thumbnail == None:
                 return ('Started playing <b><a href="%s">%s</a></b>' % (self.url,self.title)) + dur
             else:
-                try:
-                    htmlimg = formatimage(self.thumbnail)
-                except:
-                    htmlimg = '<img src="%s" width=200 />' % self.url
+                # try:
+                htmlimg = formatimage(self.thumbnail)
+                # except:
+                    # htmlimg = '<img src="%s" width=200 />' % self.url
                 return ("""<table>
                 <tr>
 					<td align="center"><i>Now playing...</i></td>
