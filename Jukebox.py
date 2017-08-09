@@ -19,6 +19,7 @@ from shutil import copyfile
 from multiprocessing import Process
 import subprocess as sp
 import ConfigParser
+import StringIO
 import urllib2
 import base64
 import re
@@ -33,7 +34,7 @@ except ImportError:
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
-VERSION = "0.3b4"
+VERSION = "0.3b5"
 
 class LinkHandler:
     
