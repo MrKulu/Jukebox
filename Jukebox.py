@@ -178,7 +178,7 @@ class LinkHandler:
             if self.thumbnail == None:
                 return ('Started playing <b><a href="%s">%s</a></b>' % (self.url,self.title)) + dur
             else:
-                return ("""<br><div><a href="%s"><img src="%s" width="200"></a></div><br>Started playing <b><a href="%s">%s</a></b>""" % (self.url,self.thumbnail,self.url,self.title)) + dur
+                return ("""<br><div><a href="%s"><img src="%s" width="400"></a></div><br>Started playing <b><a href="%s">%s</a></b>""" % (self.url,self.thumbnail,self.url,self.title)) + dur
 
 
 class Jukebox:
@@ -430,7 +430,7 @@ def get_url(url):
 def int_to_time(n):
     m = n/60
     if m > 60:
-        return "%d:%02d%02d" % (m/60,m%60,n%60)
+        return "%d:%02d:%02d" % (m/60,m%60,n%60)
     else:
         return "%02d:%02d" % (m,n%60)
         
