@@ -496,7 +496,7 @@ def formatimage(url):
 
     injected_img = None
 
-    if ret_image_info.size/1024 < 256:
+    if ret_image_info.size is not None and ret_image_info.size/1024 < 256:
         encoded = base64.b64encode(open_url.read())
         injected_img = ('<img src="data:image/jpeg;charset=utf-8;base64,' +
                         str(encoded) +
