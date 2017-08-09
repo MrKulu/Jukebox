@@ -188,8 +188,14 @@ class LinkHandler:
             if self.thumbnail == None:
                 return ('Started playing <b><a href="%s">%s</a></b>' % (self.url,self.title)) + dur
             else:
-                htmlimg = formatimage(self.thumbnail)
+                try:
+                    htmlimg = formatimage(self.thumbnail)
+                else:
+                    htmlimg = '<img src="%s" width=200 />' % self.url
                 return ("""<table>
+                <tr>
+					<td align="center"><i>Now playing...</i></td>
+				</tr>
 			 	<tr>
 					<td align="center"><a href="%s">%s<a></td>
 				</tr>
@@ -487,8 +493,7 @@ def formatimage(url):
             img_parser.feed(block_buf)
             if img_parser.image:
                 ret_image_info.width, ret_image_info.height = img_parser.image.size
-                
-    # injected_img = '<img src="%s" width=200 />' % url
+
     injected_img = None
 
     if ret_image_info.size/1024 < 256:
@@ -498,7 +503,7 @@ def formatimage(url):
                         '" %s />' % getModifiers(ret_image_info))
     else:
         image = Image.open(StringIO.StringIO(open_url.read()))
-        image.thumbnail((300, 300), Image.ANTIALIAS)
+        image.thumbnail((200, 200), Image.ANTIALIAS)
         trans = StringIO.StringIO()
         image.save(trans, format="JPEG")
         encoded = base64.b64encode(trans.getvalue())
@@ -527,8 +532,8 @@ def getModifiers(img_info):
     modifiers = ""
     width_percent_reduction = 0
     height_percent_reduction = 0
-    max_width = float(500)
-    max_height = float(1000)
+    max_width = float(200)
+    max_height = float(200)
     if max_width and img_info.width > max_width:
         width_percent_reduction = (img_info.width / max_width) - 1.0
     if max_height and img_info > max_height:
