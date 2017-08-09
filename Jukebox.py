@@ -19,6 +19,15 @@ from shutil import copyfile
 from multiprocessing import Process
 import subprocess as sp
 import ConfigParser
+import urllib2
+import base64
+import re
+try:
+    import ImageFile
+    import Image
+except ImportError:
+    from PIL import ImageFile
+    from PIL import Image
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
@@ -178,7 +187,15 @@ class LinkHandler:
             if self.thumbnail == None:
                 return ('Started playing <b><a href="%s">%s</a></b>' % (self.url,self.title)) + dur
             else:
-                return ("""<br><div><a href="%s"><img src="%s" width="400"></a></div><br>Started playing <b><a href="%s">%s</a></b>""" % (self.url,self.thumbnail,self.url,self.title)) + dur
+                htmlimg = formatimage(self.thumbnail)
+                return ("""<table>
+			 	<tr>
+					<td align="center"><a href="%s">%s<a></td>
+				</tr>
+				<tr>
+					<td align="center"><b><a href="%s">%s</a>%s</b></td>
+				</tr>
+                </table>""" % (self.url,htmlimg,self.url,self.title,dur))
 
 
 class Jukebox:
@@ -433,6 +450,96 @@ def int_to_time(n):
         return "%d:%02d:%02d" % (m/60,m%60,n%60)
     else:
         return "%02d:%02d" % (m,n%60)
+        
+def formatimage(url):
+""" Funtion resizes thumbnails to fit in the Mumble client.
+    code copied and modified from https://github.com/aselus-hub/chatimg-mumo """
+    
+    class ImageInfo(object):
+        """Class for storing image information.
+            size = size of the image in bytes
+            width = width of the image in pixels
+            height = height of the image in pixels
+        """
+        def __init__(self,
+                     size=None,
+                     width=None,
+                     height=None):
+            self.size = size
+            self.width = width
+            self.height = height
+            
+            
+    open_url = urllib2.urlopen(url)
+
+    ret_image_info = None
+    if "image" in open_url.headers.get("content-type"):
+        ret_image_info = ImageInfo()
+
+        ret_image_info.size = open_url.headers.get("content-length") or None
+        if ret_image_info.size:
+            ret_image_info.size = int(ret_image_info.size)
+            
+        img_parser = ImageFile.Parser()
+        for block_buf in readImageDataPerByte(urllib2.urlopen(open_url.geturl())):
+            img_parser.feed(block_buf)
+            if img_parser.image:
+                ret_img_info.width, ret_img_info.height = img_parser.image.size
+                
+    # injected_img = '<img src="%s" width=200 />' % url
+    injected_img = None
+
+    if ret_img_info.size/1024 < 256:
+        encoded = base64.b64encode(open_url.read())
+        injected_img = ('<img src="data:image/jpeg;charset=utf-8;base64,' +
+                        str(encoded) +
+                        '" %s />' % getModifiers(ret_img_info))
+    else:
+        image = Image.open(StringIO.StringIO(open_url.read()))
+        image.thumbnail((500, 1000), Image.ANTIALIAS)
+        trans = StringIO.StringIO()
+        image.save(trans, format="JPEG")
+        encoded = base64.b64encode(trans.getvalue())
+        injected_img = ('<img src="data:image/jpeg;charset=utf-8;base64,' +
+                        str(encoded) +
+                        '"  />')
+
+    return injected_img
+    
+def readImageDataPerByte(open_url):
+    """Utility method for reading a an image, reads 1kb at a time.
+    :param open_url:  urlinfo opened urllib2 object for the image url.
+    :return: 1024 byte data set
+    """
+    data = open_url.read(1024)
+    while data:
+        yield data
+        data = open_url.read(1024)
+        
+def getModifiers(img_info):
+    """ If the image is greater then the limits for images set in config, generates an html style descriptor.
+    :param img_info: ImageInfo - the full img_info for this image.
+    :return: str containing the modifier needed in order to resize the image in html, or blank if no resizing
+    is required.
+    """
+    modifiers = ""
+    width_percent_reduction = 0
+    height_percent_reduction = 0
+    max_width = float(500)
+    max_height = float(1000)
+    if max_width and img_info.width > max_width:
+        width_percent_reduction = (img_info.width / max_width) - 1.0
+    if max_height and img_info > max_height:
+        height_percent_reduction = (img_info.height / max_height) - 1.0
+
+    if width_percent_reduction > 0 and width_percent_reduction > height_percent_reduction:
+        modifiers = " width=\"%s\" " % max_width
+    elif height_percent_reduction > 0:
+        modifiers = " height=\"%d\" " % max_height
+
+    return modifiers
+    
+    
         
 if __name__ == "__main__":
 
