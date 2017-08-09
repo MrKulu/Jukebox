@@ -168,7 +168,7 @@ class LinkHandler:
     def show_info(self):
         dur = ""
         if self.duration != None:
-            dur += " (" + self.duration ")"
+            dur += " (" + self.duration + ")"
         if self.title == None:
             return ('Started playing <a href="%s">%s</a>' % (self.url,self.url)) + dur
         else:
