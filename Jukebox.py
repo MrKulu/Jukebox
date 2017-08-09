@@ -190,7 +190,7 @@ class LinkHandler:
             else:
                 try:
                     htmlimg = formatimage(self.thumbnail)
-                else:
+                except:
                     htmlimg = '<img src="%s" width=200 />' % self.url
                 return ("""<table>
                 <tr>
