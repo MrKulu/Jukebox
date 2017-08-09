@@ -65,8 +65,8 @@ class LinkHandler:
         self.title = title
         
     def download(self):
-        if self.title is None:
-            self.find_title()
+        if self.info is None:
+            self.find_info()
         if self.downloaded:
             self.log.warning("Trying to download an already downloaded url ( %s ). Aborting." % self.url)
         elif 'stream' in self.options:
@@ -86,13 +86,13 @@ class LinkHandler:
                 self.log.warning("Trying to play a previously played song")
             return False
         elif 'stream' in self.options:
-            if self.title is None:
-                self.get_found_title()
+            if self.info is None:
+                self.get_found_info()
             self.stream()
             return True
         else:
-            if self.title is None:
-                self.get_found_title()
+            if self.info is None:
+                self.get_found_info()
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
 
             command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filename
@@ -135,26 +135,48 @@ class LinkHandler:
     def get_key(self):
         return self.url
 
-    def find_title(self):
-        titlefind = "~/.musiccache/%s.title" % (hashlib.sha1(self.url).hexdigest())
+    def find_info(self):
+        self.info = True
+        infofind = "~/.musiccache/%s.info" % (hashlib.sha1(self.url).hexdigest())
         try:
-            os.remove(os.path.expanduser(titlefind))
+            os.remove(os.path.expanduser(infofind))
         except:
             True
-        command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -J %s | jq -r ".title" >> %s' % (self.url,titlefind)
+        command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -J %s | jq -r ".title,.thumbnail,.duration" >> %s' % (self.url,infofind)
         sp.call(command, shell = True)
 
-    def get_found_title(self):
-        titlefind = "~/.musiccache/%s.title" % (hashlib.sha1(self.url).hexdigest())
-        f = open(os.path.expanduser(titlefind))
-        ttl = f.readline()
-        if ttl != "":
-            self.title = ttl[:-1]
+    def get_found_info(self):
+        infofind = "~/.musiccache/%s.info" % (hashlib.sha1(self.url).hexdigest())
+        f = open(os.path.expanduser(infofind))
+        self.title = f.readline()[:-1]
+        self.thumbnail = f.readline()[:-1]
+        self.duration = f.readline()[:-1]
         f.close()
+        if self.title == "none":
+            self.title = None
+        if self.thumbnail == "none":
+            self.thumbnail = None
+        if self.duration == "none":
+            self.duration = None
+        else:
+            self.duration = int_to_time(int(self.suration))
         try:
-            os.remove(os.path.expanduser(titlefind))
+            os.remove(os.path.expanduser(infofind))
         except:
             True
+            
+    def show_info(self):
+        dur = ""
+        if self.duration != None:
+            dur += " (" + self.duration ")"
+        if self.title == None:
+            return ('Started playing <a href="%s">%s</a>' % (self.url,self.url)) + dur
+        else:
+            if self.thumbnail == None:
+                return ('Started playing <b><a href="%s">%s</a></b>' % (self.url,self.title)) + dur
+            else:
+                return ("""<br><div><a href="%s"><img src="%s" width="200"></a></div><br>Started playing <b><a href="%s">%s</a></b>""" % (self.url,self.thumbnail,self.url,self.title)) + dur
+
 
 class Jukebox:
     def __init__(self, host, user="Jukebox", port=64738, password="", channel="", config=None):
@@ -329,10 +351,10 @@ class Jukebox:
                     self.log.debug('Hide mode Off')
                     
             elif command == "help":
-                self.send_msg_channel("Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
+                self.send_msg_channel("Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume, !current, !randomize, !hide")
               
             else:
-                self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume,, !current, !randomize, !hide")
+                self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume, !current, !randomize, !hide")
         
     def loop(self):
         while not self.exit:
@@ -370,10 +392,10 @@ class Jukebox:
                     if self.playlist[ind].play():
                         x = self.playlist.pop(ind)
                         self.playing = True
-                        if not self.hidden and x.title is not None and "hide" not in x.options:
+                        if not self.hidden and x.info is not None and "hide" not in x.options:
                             self.send_msg_channel('Started playing <b>%s</b>' % (x.title))
                         else:
-                            self.send_msg_channel('Started playing <a href="%s">%s</a>' % (x.url,x.url))
+                            self.send_msg_channel(x.show_info())
                 self.set_comment_info()
  
 
@@ -401,6 +423,13 @@ def get_url(url):
         return res.group(1)
     else:
         return None
+        
+def int_to_time(n):
+    m = n/60
+    if m > 60:
+        return "%d:%02d%02d" % (m/60,m%60,n%60)
+    else:
+        return "%02d:%02d" % (m,n%60)
         
 if __name__ == "__main__":
 
