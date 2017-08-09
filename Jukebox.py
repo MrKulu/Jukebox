@@ -165,11 +165,11 @@ class LinkHandler:
         self.thumbnail = f.readline()[:-1]
         self.duration = f.readline()[:-1]
         f.close()
-        if self.title == "none":
+        if self.title == "null":
             self.title = None
-        if self.thumbnail == "none":
+        if self.thumbnail == "null":
             self.thumbnail = None
-        if self.duration == "none":
+        if self.duration == "null":
             self.duration = None
         else:
             self.duration = int_to_time(int(float(self.duration)))
