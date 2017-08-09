@@ -452,8 +452,9 @@ def int_to_time(n):
         return "%02d:%02d" % (m,n%60)
         
 def formatimage(url):
-""" Funtion resizes thumbnails to fit in the Mumble client.
-    code copied and modified from https://github.com/aselus-hub/chatimg-mumo """
+    """Funtion resizes thumbnails to fit in the Mumble client.
+    code copied and modified from https://github.com/aselus-hub/chatimg-mumo 
+    """
     
     class ImageInfo(object):
         """Class for storing image information.
