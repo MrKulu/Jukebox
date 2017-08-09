@@ -63,6 +63,9 @@ class LinkHandler:
         self.downloaded = False
         self.log = logging.getLogger(__name__)
         self.title = title
+        self.thumbnail = None
+        self.duration = None
+        self.info = None
         
     def download(self):
         if self.info is None:
