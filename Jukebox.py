@@ -486,19 +486,19 @@ def formatimage(url):
         for block_buf in readImageDataPerByte(urllib2.urlopen(open_url.geturl())):
             img_parser.feed(block_buf)
             if img_parser.image:
-                ret_img_info.width, ret_img_info.height = img_parser.image.size
+                ret_image_info.width, ret_image_info.height = img_parser.image.size
                 
     # injected_img = '<img src="%s" width=200 />' % url
     injected_img = None
 
-    if ret_img_info.size/1024 < 256:
+    if ret_image_info.size/1024 < 256:
         encoded = base64.b64encode(open_url.read())
         injected_img = ('<img src="data:image/jpeg;charset=utf-8;base64,' +
                         str(encoded) +
-                        '" %s />' % getModifiers(ret_img_info))
+                        '" %s />' % getModifiers(ret_image_info))
     else:
         image = Image.open(StringIO.StringIO(open_url.read()))
-        image.thumbnail((500, 1000), Image.ANTIALIAS)
+        image.thumbnail((300, 300), Image.ANTIALIAS)
         trans = StringIO.StringIO()
         image.save(trans, format="JPEG")
         encoded = base64.b64encode(trans.getvalue())
