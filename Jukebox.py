@@ -29,6 +29,8 @@ try:
 except ImportError:
     from PIL import ImageFile
     from PIL import Image
+    
+from commands import *
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
@@ -297,6 +299,9 @@ class Jukebox:
             self.log.debug('Trying to add %s to the playlist' % url)
 
         
+    def get_all_commands(self):
+        return map(lambda x:x[:-3],filter(lambda y:re.search("\.py$",y) is not None,os.listdir(sys.path[0]+"/commands")))
+        
     def message_received(self,text):
         message = text.message
         if message[0] == '!':
@@ -308,80 +313,88 @@ class Jukebox:
                     parameter = message[1]
             else:
                 return
-
-            if command in ["add","loop","stream"] and parameter:
-                options = parameter.split(' ')
-                urlp = options.pop()
-                self.add_to_playlist(get_url(urlp), options = options+[command])
                 
-            elif command in ["hadd","hloop","hstream"] and parameter:
-                options = parameter.split(' ')
-                urlp = options.pop()
-                self.add_to_playlist(get_url(urlp), options = options+[command[1:],"hide"])
+            try:
+                getattr(commands,command).execute(self,parameter)
+            except:
+                if command == "help":
+                    self.send_msg_channel("Available commands are " + ", ".join(self.get_all_commands()))
+                else:
+                    self.send_msg_channel("Incorrect input. Available commands are " + ", ".join(self.get_all_commands()))
+
+            # if command in ["add","loop","stream"] and parameter:
+                # options = parameter.split(' ')
+                # urlp = options.pop()
+                # self.add_to_playlist(get_url(urlp), options = options+[command])
                 
-            elif command == "skip":
-                self.stop()                
-
-            elif command == 'kill':
-                self.playlist = []
-                self.stop()                        
-                ke = self.downProc.keys()
-                for i in ke:
-                    self.downProc[i].terminate()
-                    self.downProc[i].join()
-                    del self.downProc[i]
-                self.exit = True
+            # elif command in ["hadd","hloop","hstream"] and parameter:
+                # options = parameter.split(' ')
+                # urlp = options.pop()
+                # self.add_to_playlist(get_url(urlp), options = options+[command[1:],"hide"])
                 
-            elif command == "clear":
-                self.playlist = []
-                self.stop()
-                ke = self.downProc.keys()
-                for i in ke:
-                    self.downProc[i].terminate()
-                    self.downProc[i].join()
-                    del self.downProc[i]                
+            # elif command == "skip":
+                # self.stop()                
 
-            elif command == 'volume':
-                if parameter is not None and parameter.isdigit() and int(parameter) >= 0 and int(parameter) <= 100:
-                    self.volume = float(float(parameter) / 100)
-                    self.send_msg_channel("Volume has been set to " + str(int(self.volume*100)))
-                    self.set_comment_info()
-                else:
-                    self.send_msg_channel("Current volume is " + str(int(self.volume*100)))
+            # elif command == 'kill':
+                # self.playlist = []
+                # self.stop()                        
+                # ke = self.downProc.keys()
+                # for i in ke:
+                    # self.downProc[i].terminate()
+                    # self.downProc[i].join()
+                    # del self.downProc[i]
+                # self.exit = True
+                
+            # elif command == "clear":
+                # self.playlist = []
+                # self.stop()
+                # ke = self.downProc.keys()
+                # for i in ke:
+                    # self.downProc[i].terminate()
+                    # self.downProc[i].join()
+                    # del self.downProc[i]                
 
-            elif command == "current":
-                cur = LinkHandler.get_current()
-                if cur is not None:
-                    if not self.hidden and cur.title is not None and "hide" not in cur.options:
-                        self.send_msg_channel('Currently playing <b>%s</b>' % (cur.title))
-                    else:
-                        self.send_msg_channel('Currently playing <a href="%s">%s</a>' % (cur.url,cur.url))
-                else:
-                    self.send_msg_channel("Nothing is currently playing")
+            # elif command == 'volume':
+                # if parameter is not None and parameter.isdigit() and int(parameter) >= 0 and int(parameter) <= 100:
+                    # self.volume = float(float(parameter) / 100)
+                    # self.send_msg_channel("Volume has been set to " + str(int(self.volume*100)))
+                    # self.set_comment_info()
+                # else:
+                    # self.send_msg_channel("Current volume is " + str(int(self.volume*100)))
+
+            # elif command == "current":
+                # cur = LinkHandler.get_current()
+                # if cur is not None:
+                    # if not self.hidden and cur.title is not None and "hide" not in cur.options:
+                        # self.send_msg_channel('Currently playing <b>%s</b>' % (cur.title))
+                    # else:
+                        # self.send_msg_channel('Currently playing <a href="%s">%s</a>' % (cur.url,cur.url))
+                # else:
+                    # self.send_msg_channel("Nothing is currently playing")
                     
-            elif command == "randomize":
-                self.randomize = not self.randomize
-                if self.randomize:
-                    self.send_msg_channel("Randomizer On")
-                    self.log.debug('Randomizer On')
-                else:
-                    self.send_msg_channel("Randomizer Off")
-                    self.log.debug('Randomizer Off')
+            # elif command == "randomize":
+                # self.randomize = not self.randomize
+                # if self.randomize:
+                    # self.send_msg_channel("Randomizer On")
+                    # self.log.debug('Randomizer On')
+                # else:
+                    # self.send_msg_channel("Randomizer Off")
+                    # self.log.debug('Randomizer Off')
                     
-            elif command == "hide":
-                self.hidden = not self.hidden
-                if self.hidden:
-                    self.send_msg_channel("Hide mode On")
-                    self.log.debug('Hide mode On')
-                else:
-                    self.send_msg_channel("Hide mode Off")
-                    self.log.debug('Hide mode Off')
+            # elif command == "hide":
+                # self.hidden = not self.hidden
+                # if self.hidden:
+                    # self.send_msg_channel("Hide mode On")
+                    # self.log.debug('Hide mode On')
+                # else:
+                    # self.send_msg_channel("Hide mode Off")
+                    # self.log.debug('Hide mode Off')
                     
-            elif command == "help":
-                self.send_msg_channel("Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume, !current, !randomize, !hide")
+            # elif command == "help":
+                # self.send_msg_channel("Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume, !current, !randomize, !hide")
               
-            else:
-                self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume, !current, !randomize, !hide")
+            # else:
+                # self.send_msg_channel("Incorrect input. Available commands are !add, !loop, !stream, !hadd, !hloop, !hstream, !skip, !kill, !clear, !volume, !current, !randomize, !hide")
         
     def loop(self):
         while not self.exit:
