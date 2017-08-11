@@ -134,7 +134,7 @@ class Jukebox:
 
         
     def get_all_commands(self):
-        return map(lambda x:x[:-3],filter(lambda y:re.search("\.py$",y) is not None and y != "__init__.py",os.listdir(sys.path[0]+"/commands")))
+        return sorted(map(lambda x:x[:-3],filter(lambda y:re.search("\.py$",y) is not None and y != "__init__.py",os.listdir(sys.path[0]+"/commands"))))
         
     def message_received(self,text):
         message = text.message
@@ -150,7 +150,7 @@ class Jukebox:
                 
             try:
                 getattr(commands,command).execute(self,parameter)
-            except:
+            except AttributeError:
                 if command == "help":
                     self.send_msg_channel("Available commands are " + ", ".join(self.get_all_commands()))
                 else:
