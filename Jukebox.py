@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from commands import *
+import commands
+
 import httplib2
 import os
 import sys
@@ -29,8 +32,6 @@ try:
 except ImportError:
     from PIL import ImageFile
     from PIL import Image
-    
-from commands import *
 
 from LinkHandler import *
 
