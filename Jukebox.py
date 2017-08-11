@@ -2,6 +2,7 @@
 
 from commands import *
 import commands
+from __builtin__ import *
 
 import httplib2
 import os
