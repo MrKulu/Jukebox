@@ -2,7 +2,7 @@ def execute(bot,parameter):
     if bot.randomize:
         bot.send_msg_channel("Next song will be chosen at random!")
     else:
-        if bot.playlist.length() == 0:
+        if len(bot.playlist) == 0:
             bot.send_msg_channel("The playlist is empty")
         else:
             nxt = bot.playlist[0]
