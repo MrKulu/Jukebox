@@ -67,7 +67,10 @@ class LinkHandler:
             return ""
     
     def __init__(self,url=None,options=[],title=None):
-        self.url = url
+        if url is not None:
+            self.url = url.encode()
+        else:
+            self.url = None
         self.options = options
         self.started = False
         self.downloaded = False
@@ -192,7 +195,6 @@ class LinkHandler:
                 htmlimg = formatimage(self.thumbnail)
                 # except:
                     # htmlimg = '<img src="%s" width=200 />' % self.url
-                print(self.url,htmlimg,self.url,self.title,dur)
                 return ("""<table>
                 <tr>
 					<td align="center"><i>Now playing...</i></td>
