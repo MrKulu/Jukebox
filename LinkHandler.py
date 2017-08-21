@@ -192,7 +192,8 @@ class LinkHandler:
                 htmlimg = formatimage(self.thumbnail)
                 # except:
                     # htmlimg = '<img src="%s" width=200 />' % self.url
-                return (u"""<table>
+                print(self.url,htmlimg,self.url,self.title,dur)
+                return ("""<table>
                 <tr>
 					<td align="center"><i>Now playing...</i></td>
 				</tr>
