@@ -99,7 +99,7 @@ class Jukebox:
                 os.remove(os.path.expanduser(batchfile))
             except:
                 True
-            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist --dump-single-json %s >> %s' % (url,batchfile)
+            command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist --dump-single-json "%s" >> %s' % (url,batchfile)
             sp.call(command, shell = True)
             f = open(os.path.expanduser(batchfile))
             try:

@@ -91,7 +91,7 @@ class LinkHandler:
             self.log.debug("Starting download for %s" % self.url)
             
             filename = '~/.musiccache/%s.opus' % (hashlib.sha1(self.url).hexdigest())
-            command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg','--no-playlist', '-o', filename, '-x', "--audio-format", "opus", self.url]
+            command_yt = ["youtube-dl", '-w', '-4', '--prefer-ffmpeg','--no-playlist', '-o', filename, '-x', "--audio-format", "opus", '"'+self.url+'"']
             sp.call(command_yt)
             
             self.log.debug("Downloading for %s complete" % self.url)
@@ -134,7 +134,7 @@ class LinkHandler:
                 os.remove(os.path.expanduser(filename))
             except:
                 True            
-            command = "youtube-dl -w -4 --prefer-ffmpeg --no-playlist %s -o - | ffmpeg -i - -ac 1 -f s16le -ar 48000 -" % self.url
+            command = "youtube-dl -w -4 --prefer-ffmpeg --no-playlist \"%s\" -o - | ffmpeg -i - -ac 1 -f s16le -ar 48000 -" % self.url
 
             #if 'loop' in self.options:
             #    command = "youtube-dl -w -4 --prefer-ffmpeg --no-playlist %s -o - | ffmpeg -i - -c opus -ac 1 -f s16le -ar 48000 -f tee -map 0:a \"%s|pipe:\";while true; do ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 - ; done" % (self.url,os.path.expanduser(filename),filename)
@@ -158,7 +158,7 @@ class LinkHandler:
             os.remove(os.path.expanduser(infofind))
         except:
             True
-        command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -J %s | jq -r ".title,.thumbnail,.duration" >> %s' % (self.url,infofind)
+        command = 'youtube-dl -4 --no-warnings --no-playlist --flat-playlist -J "%s" | jq -r ".title,.thumbnail,.duration" >> %s' % (self.url,infofind)
         sp.call(command, shell = True)
 
     def get_found_info(self):
