@@ -175,7 +175,10 @@ class LinkHandler:
         if self.duration == "null":
             self.duration = None
         else:
-            self.duration = int_to_time(int(float(self.duration)))
+            try:
+                self.duration = int_to_time(int(float(self.duration)))
+            except:
+                self.duration = None
         try:
             os.remove(os.path.expanduser(infofind))
         except:
