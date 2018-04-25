@@ -69,6 +69,8 @@ class LinkHandler:
     def __init__(self,url=None,options=[],title=None):
         if url is not None:
             self.url = url.encode()
+            if re.match("[a-zA-Z0-9_-]{11}",self.url) is not None:
+                self.url = "https://www.youtu.be/"+re.match
         else:
             self.url = None
         self.options = options
