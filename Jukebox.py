@@ -42,6 +42,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
 VERSION = "0.3b6"
+BONSOIR = "../bonsoir.aac"
 
 class Jukebox:
     def __init__(self, host, user="Jukebox", port=64738, password="", channel="", config=None):
@@ -69,7 +70,10 @@ class Jukebox:
         self.mumble = pymumble.Mumble(host, user=user, port=port, password=password, reconnect=True,
                                       debug=False)
         self.mumble.callbacks.set_callback(pymumble.constants.PYMUMBLE_CLBK_TEXTMESSAGERECEIVED, self.message_received)
-
+        self.mumble.callbacks.set_callback(pymumble.constants.PYMUMBLE_CLBK_USERCREATED, self.user_created)
+        self.mumble.callbacks.set_callback(pymumble.constants.PYMUMBLE_CLBK_USERUPDATED, self.user_updated)
+                
+        
         self.mumble.start()  # start the mumble thread
         self.mumble.is_ready()  # wait for the connection
         self.mumble.users.myself.unmute()  # make sure the user is not muted
@@ -137,6 +141,23 @@ class Jukebox:
         
     def get_all_commands(self):
         return sorted(map(lambda x:x[:-3],filter(lambda y:re.search("\.py$",y) is not None and y != "__init__.py",os.listdir(sys.path[0]+"/commands"))))
+
+    def user_created(self,user):
+        me = self.mumble.users.myself
+        if me is not None and "channel_id" in me and user["channel_id"] == me["channel_id"]:
+            self.play_bonsoir(BONSOIR)
+
+    def user_updated(self,user,actions):
+        me = self.mumble.users.myself
+        if me is not None and "channel_id" in me and "channel_id" in actions and user["channel_id"] == me["channel_id"]:
+            self.play_bonsoir(BONSOIR)
+                        
+
+    def play_bonsoir(self,filen):
+        command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filen
+        bonsoir = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=-1)
+        (bsound,_) = bonsoir.communicate()
+        self.mumble.sound_output.add_sound(audioop.mul(bsound,2,self.volume))
         
     def message_received(self,text):
         message = text.message
@@ -182,7 +203,7 @@ class Jukebox:
                     time.sleep(0.01)
                 self.mumble.sound_output.add_sound(audioop.mul(LinkHandler.read(1024), 2, self.volume))
                 if LinkHandler.get_current() is None:
-                    while self.mumble.sound_output.get_buffer_size() > 0.45:
+                    while self.mumble.sound_output.get_buffer_size() > 0.5:
                         time.sleep(0.01)
                     self.playing = False
             else:
@@ -202,7 +223,7 @@ class Jukebox:
  
 
         while self.mumble.sound_output.get_buffer_size() > 0:
-            time.sleep(0.01)
+            time.sleep(0.5)
         time.sleep(0.5)
         
     def stop(self):
