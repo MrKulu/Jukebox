@@ -40,6 +40,7 @@ class LinkHandler:
     
     __thread = None
     __current = None
+    __buffer = None
     
     @classmethod
     def stop(cls):
@@ -53,14 +54,22 @@ class LinkHandler:
 
     @classmethod
     def get_current(cls):
-        if cls.__thread is None or cls.__thread.poll() is not None:
+        if cls.__thread is not None and cls.__thread.poll() is not None:
+            cls.__buffer = cls.__thread.stdout.read()
+            cls.__thread = None
+            cls.__current = None
+        elif cls.__thread is None:
             cls.__current = None
             cls.__thread = None
         return cls.__current
         
     @classmethod
     def read(cls,n):
-        if cls.__thread is not None:
+        if cls.__buffer is not None:
+            r = cls.__buffer
+            cls.__buffer = None
+            return r
+        elif cls.__thread is not None:
             return cls.__thread.stdout.read(n)
         else:
             cls.__current = None

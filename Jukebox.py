@@ -144,12 +144,12 @@ class Jukebox:
 
     def user_created(self,user):
         me = self.mumble.users.myself
-        if me is not None and "channel_id" in me and user["channel_id"] == me["channel_id"]:
+        if me is not None and user is not None and "channel_id" in me and "channel_id" in user and user["channel_id"] == me["channel_id"]:
             self.play_bonsoir(BONSOIR)
 
     def user_updated(self,user,actions):
         me = self.mumble.users.myself
-        if me is not None and "channel_id" in me and "channel_id" in actions and user["channel_id"] == me["channel_id"]:
+        if me is not None and user is not None and "channel_id" in user and "channel_id" in me and "channel_id" in actions and user["channel_id"] == me["channel_id"]:
             self.play_bonsoir(BONSOIR)
                         
 
@@ -203,6 +203,7 @@ class Jukebox:
                     time.sleep(0.01)
                 self.mumble.sound_output.add_sound(audioop.mul(LinkHandler.read(1024), 2, self.volume))
                 if LinkHandler.get_current() is None:
+                    self.mumble.sound_output.add_sound(audioop.mul(LinkHandler.read(1024),2,self.volume))
                     while self.mumble.sound_output.get_buffer_size() > 0.5:
                         time.sleep(0.01)
                     self.playing = False
