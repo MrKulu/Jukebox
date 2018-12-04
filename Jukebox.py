@@ -42,7 +42,12 @@ from Misc import *
 sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
-VERSION = "0.3b6"
+VERSION = "0.4a04_12_2018"
+CONF_DFLT = {
+    "volume":0.5,
+    "download":1
+}
+FORMAT = "<%(filename)s> [%(levelname)s] %(message)s"
 BONSOIR = "../bonsoir.aac"
 WEDNESDAY = "../wednesday.opus"
 
@@ -54,14 +59,8 @@ class Jukebox:
         self.exit = False
         self.nbexit = 0
 
-        try:
-            self.volume = config.get("Bot","volume")
-        except:
-            self.volume = 0.5
-        try:
-            self.n_download = config.get("Bot","download")
-        except:
-            self.n_download = 1
+        self.volume = config.get("Bot","volume")
+        self.n_download = config.get("Bot","download")
         self.downProc = {}
         self.randomize = False
         self.hidden = False
@@ -83,6 +82,10 @@ class Jukebox:
         if channel != "":
             self.mumble.channels.find_by_name(channel).move_in()
         self.mumble.set_bandwidth(200000)
+        self.log.warning("test-w")
+        self.log.error("test-e")
+        self.log.debug("test-d")
+        self.log.info("test-i")
         self.loop()
 
     def set_comment_info(self):
@@ -246,9 +249,6 @@ class Jukebox:
         
 if __name__ == "__main__":
 
-    log = logging.getLogger(__name__)
-    
-
     p = argparse.ArgumentParser(description='A jukebox for Mumble.')
     
     p.add_argument('ip',metavar='server_ip',help='ip adress of the mumble server the script will try to connect to')
@@ -271,31 +271,13 @@ if __name__ == "__main__":
         loglvl = logging.DEBUG
     if args.silent:
         loglvl = logging.ERROR
-    
-    log.setLevel(loglvl)
+
     if args.log != '':
-        # ch = logging.StreamHandler(args.log) TO FIX
-        ch = logging.StreamHandler()
+        logging.basicConfig(filename=args.log,level=loglvl,format=FORMAT)
     else:
-        ch = logging.StreamHandler()
-    ch.setLevel(loglvl)
-    formatter = logging.Formatter('<%(filename)s> [%(levelname)s] %(message)s')
-    ch.setFormatter(formatter)
-    log.addHandler(ch)
-    
-    config = ConfigParser.SafeConfigParser()
-    try:
-        config.read('jukebox.cfg')
-    except:
-        c = open('jukebox.cfg',w)
-        c.write("""
-[Init]
-port=64738
-[Bot]
-volume=0.5
-download=1
-        """)
-        c.close()
-        config.read('jukebox.cfg')
+        logging.basicConfig(level=loglvl,format=FORMAT)
+        
+    config = ConfigParser.SafeConfigParser(CONF_DFLT)
+    config.read('jukebox.cfg')
     
     m = Jukebox(args.ip, password=args.password, port=args.port, channel=args.channel,user=args.name,config=config)
