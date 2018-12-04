@@ -89,3 +89,4 @@ ENV/
 .ropeproject
 
 jukebox.cfg
+commands/wa.py

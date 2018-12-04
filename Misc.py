@@ -34,6 +34,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "pymumble"))
 import pymumble
 
 def get_url(url):
+    """Returns url from a hyperlink
+    """
     if url.startswith('http'):
         return url
     p = re.compile('href="(.+)"', re.IGNORECASE)
@@ -44,6 +46,8 @@ def get_url(url):
         return None
         
 def int_to_time(n):
+    """Formats time from seconds to h:m:s
+    """
     m = n/60
     if m > 60:
         return "%d:%02d:%02d" % (m/60,m%60,n%60)
@@ -51,7 +55,7 @@ def int_to_time(n):
         return "%02d:%02d" % (m,n%60)
         
 def formatimage(url):
-    """Funtion resizes thumbnails to fit in the Mumble client.
+    """Function resizes thumbnails to fit in the Mumble client.
     code copied and modified from https://github.com/aselus-hub/chatimg-mumo 
     """
     

@@ -27,6 +27,7 @@ import StringIO
 import urllib2
 import base64
 import re
+import datetime
 try:
     import ImageFile
     import Image
@@ -43,6 +44,7 @@ import pymumble
 
 VERSION = "0.3b6"
 BONSOIR = "../bonsoir.aac"
+WEDNESDAY = "../wednesday.opus"
 
 class Jukebox:
     def __init__(self, host, user="Jukebox", port=64738, password="", channel="", config=None):
@@ -154,7 +156,10 @@ class Jukebox:
                         
 
     def play_bonsoir(self,filen):
-        command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % filen
+        oofi = filen
+        if datetime.datetime.now().strftime("%A") == "Wednesday":
+            oofi = WEDNESDAY
+        command = "ffmpeg -nostdin -i %s -ac 1 -f s16le -ar 48000 -" % oofi
         bonsoir = sp.Popen(command, shell=True, stdout=sp.PIPE, bufsize=-1)
         (bsound,_) = bonsoir.communicate()
         self.mumble.sound_output.add_sound(audioop.mul(bsound,2,self.volume))
